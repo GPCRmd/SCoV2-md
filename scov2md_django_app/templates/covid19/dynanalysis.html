@@ -836,12 +836,19 @@
                            {% endfor %}
                         </select>
                     </div>
-                    <div id="seq_w_variants" class="row finpseq_to_model" data-finpseq_to_model="{{finpseq_to_model_json}}">
+                    <div id="seq_w_variants" style="margin-left:-50" class="row finpseq_to_model" data-finpseq_to_model="{{finpseq_to_model_json}}">
                       <span id="seq_sel_var_add"></span>
                       {% for prot_name, thisfinpseq_to_model in finpseq_to_model.items %}
                         <div style="display:inline-block;margin-bottom:10px">
-                         <div style="font-weight: bold">{{prot_name}}</div>
-                          <div>
+                         <div style="font-weight: bold;margin-left:50">{{prot_name}}</div>
+
+                          <div style="float:left;font-size:10px;margin-bottom:5px;position:relative;">
+                            <div style="clear: left;width:50px;height:15px;text-align:right;margin-right:5px">AA</div>
+                            <div style="clear: left;width:50px;height:15px;text-align:right;margin-right:5px">Seq. pos.</div>
+                            <div style="clear: left;width:50px;height:15px;text-align:right;margin-right:5px">PDB resID</div>
+                          </div>
+
+                          <div style="padding-left:55px">
                           {% for finpseq, model_details in thisfinpseq_to_model|sort_dict_by_key %}
                             <div id="prot{{forloop.parentloop.counter}}_pos{{forloop.counter}}" data-protein_name="{{prot_name}}" class="seq_sel seq_prot_{{prot_name|str_to_ref}} seq_pos_{{finpseq}} 
                             {% if 'pos_variants' in model_details %}
@@ -855,9 +862,17 @@
                                   {% endif %} 
                                   {% for isolatenm in model_details.all_isolates %} {{isolatenm}} {% endfor %}
                             {% endif %}
-                                  " data-toggle="tooltip" title="ResID: {{model_details.seqpos}}" data-varinfo="{{model_details.pos_variants|json_dump}}">
-                              <div  class="seq_sel_pos_aa seq_sel_pos">{{model_details.aa}}</div>
+                                  "
+                                    {% if 'wt_aa' in  model_details %}
+                                      data-toggle="tooltip"
+                                      data-html="true"
+                                      title="WT: {{model_details.wt_aa}}<br>PDB: {{model_details.aa}}"
+                                    {% endif %}
+
+                                    data-varinfo="{{model_details.pos_variants|json_dump}}">
+                              <div  class="seq_sel_pos_aa seq_sel_pos">{% if 'wt_aa' in  model_details %}{{model_details.wt_aa}}({{model_details.aa}}){% else %}{{model_details.aa}}{% endif %}</div>
                               <div  class="seq_sel_pos_seqpos seq_sel_pos" >{{finpseq}}</div>
+                              <div  class="seq_sel_pos_pdbpos seq_sel_pos" >{{model_details.seqpos}}</div>
                             </div>            
                           {% endfor %}
                         </div>

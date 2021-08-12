@@ -904,6 +904,10 @@ def dynanalysis(request,dyn_id,sel_genome_id=None,variantimpact_def=False):
             if mut_name not in thisres_data["pos_variants"]:
                 thisres_data["pos_variants"][mut_name]=thismut_d
                 isolates_in_seq.add(isolate_id)
+                wt_aa=thismut_d["resletter_from"]
+                pdb_aa=thisres_data["aa"]
+                if wt_aa != pdb_aa:
+                    thisres_data["wt_aa"]=wt_aa
             else:
                 thisres_data["pos_variants"][mut_name]["isolate_id"].add(isolate_id)
 

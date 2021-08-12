@@ -340,16 +340,22 @@
 
 
 .selected .seq_sel_pos.seq_sel_pos_aa{
-  border-top:1px solid black;
-  border-right:1px solid black;
-  border-left:1px solid black;
+  border-top:1px solid black !important;
+  border-right:1px solid black !important;
+  border-left:1px solid black !important;
 }
 
 .selected .seq_sel_pos.seq_sel_pos_seqpos{
   border-top:none;
-  border-bottom:1px solid black;
-  border-right:1px solid black;
-  border-left:1px solid black;
+  border-bottom:none;
+  border-right:1px solid black  !important;
+  border-left:1px solid black  !important;
+}
+.selected .seq_sel_pos.seq_sel_pos_pdbpos{
+  border-top:none;
+  border-bottom:1px solid black  !important;
+  border-right:1px solid black  !important;
+  border-left:1px solid black  !important;
 }
 
 
