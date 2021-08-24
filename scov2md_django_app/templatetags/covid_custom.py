@@ -99,3 +99,11 @@ def create_finprot_tooltip_data(prot_dict, prot_id):
       </div>
         """ % (prot_name,numdyn)
     return tooltip
+
+
+@register.filter(name='toint')
+def toint(myvar):
+    try:
+        return int(myvar)
+    except:
+        return myvar

@@ -78,7 +78,7 @@
 
       <div  class="row" id="viewer_and_analysis"> 
         {% if variant_genome %}
-          <div class="panel panel-primary" id="var_info_pannel" style="margin:0 7px 15px 7px">
+          <div class="panel panel-primary paneldef" id="var_info_pannel" style="margin:0 7px 15px 7px">
             <div class="panel-body">
               <p style="margin-bottom: 0">Displaying mutations found in <a href="/covid19/allprot/{{variant_genome}}"><span style="font-size:13px" class="label label-primary">{{variant_genome}}</span></a></p>
             </div>
@@ -108,7 +108,7 @@
                     <img src="{% static 'view/images/loading-gear.gif' %}" />
                   </center>
                 </span>
-                <div id="view_screen" class="row str_file panelrow" data-struc_file="{{files.pdb.path}}" data-struc_file_id="{{files.pdb.id}}" data-dyn_id="{{dyn_id}}" data-delta="{{dyndata_report.delta}}"  data-light_sel="{{light_sel}}" data-heavy_comp_sel="{{heavy_comp_sel}}" > 
+                <div id="view_screen" class="row str_file panelrow" data-struc_file="{{files.pdb.path}}" data-struc_file_id="{{files.pdb.id}}" data-dyn_id="{{dyn_id}}" data-delta="{{dyndata_report.delta}}"  data-light_sel="{{light_sel}}" data-included_prots="{{included_prots}}" data-heavy_comp_sel="{{heavy_comp_sel}}" > 
                   <div >
                     <div id="dropdownAndIframe" >
                     
@@ -294,7 +294,7 @@
                   </div> <!-- END quicksel_all-->
 
       <!-- ============= Variants buttonss =========== -->
-                  {% if var_data %}
+                  {% if selected_var_data %}
                   <div id="mutations_sel_all" >
                       <div class="row" >
                           <div class="section_pan subsectiontitle collapsable_sec" data-toggle="collapse" data-target="#mutations_sel"><span>Mutations</span><span  class="glyphicon glyphicon-chevron-down arrow"></span></div> 
@@ -302,41 +302,43 @@
                       <div id="mutations_sel" class="collapse" >
                           <div class="row" class="subsectionbody">
                             <div class="row" id="all_mut_buttons" style="margin-left:15px">
-                                {% for protname, prot_mutli in var_data.items %}
-                                  <p style="font-weight:bold">{{protname}}</p>
-                                  <div>
-                                  {% for mut_info in prot_mutli|sort_lod_by_key:'resid_finprot' %}
-                                  <div style="float:left;padding:4px 6px;">
-                                    <button class="btn btn-default  nglCallBtn changefocus  clickUnclick whiterep_if_act rep_molecule  rep_mutation {% if  mut_info.model_sel%}active{% else %}disabled{% endif %}" data-nglname="mutation_{{ mut_info.mut_name }}_{{forloop.counter0}}" data-selection="({{mut_info.model_sel}})" data-datatype="mutation"  >
-                                      {{ mut_info.mut_name }}</button>
-                                    <span class="glyphicon glyphicon-info-sign showtooltip" data-toggle="tooltip" data-title="<div style='overflow:auto;text-align:left'>
-                                      <p>
-                                      <strong>From:</strong> {{mut_info.resletter_from}}
-                                      </p>
-                                      <p>
-                                      <strong>To:</strong> {{mut_info.resletter_to}}
-                                      </p>
-                                      <p>
-                                      <strong>{{protname}} seq. position:</strong> {{mut_info.resid_finprot}}
-                                      </p>
-                                      <p>
-                                      <strong>Selection:</strong>
-                                        {% if mut_info.model_sel %} 
-                                          {{mut_info.model_sel}}
-                                        {% else %}
-                                          Out of the structure
-                                        {% endif %}
-                                      </p>
-                                      <p><strong>Source: </strong> <a href='https://www.gisaid.org/'>GISAID</a></p>
+                                   {% for protname, prot_posd in selected_var_data.items %}
+                                    <p style="font-weight:bold">{{protname}}</p>
+                                    <div>
+                                     {% for resid_finprot, prot_mutd in prot_posd|sort_dict_by_key %}
+                                      {% for mut_name, mut_info in prot_mutd|sort_dict_by_key %}
+                                      <div style="float:left;padding:4px 6px;">
+                                        <button class="btn btn-default  nglCallBtn changefocus  clickUnclick whiterep_if_act rep_molecule  rep_mutation {% if  mut_info.model_sel%}active{% else %}disabled{% endif %}" data-nglname="mutation_{{ mut_info.mut_name }}_{{forloop.counter0}}" data-selection="({{mut_info.model_sel}})" data-datatype="mutation"  >
+                                          {{ mut_info.mut_name }}</button>
+                                        <span class="glyphicon glyphicon-info-sign showtooltip" data-toggle="tooltip" data-title="<div style='overflow:auto;text-align:left'>
+                                          <p>
+                                          <strong>From:</strong> {{mut_info.resletter_from}}
+                                          </p>
+                                          <p>
+                                          <strong>To:</strong> {{mut_info.resletter_to}}
+                                          </p>
+                                          <p>
+                                          <strong>{{protname}} seq. position:</strong> {{mut_info.resid_finprot}}
+                                          </p>
+                                          <p>
+                                          <strong>Selection:</strong>
+                                            {% if mut_info.model_sel %} 
+                                              {{mut_info.model_sel}}
+                                            {% else %}
+                                              Out of the structure
+                                            {% endif %}
+                                          </p>
+                                          <p><strong>Source: </strong> <a href='https://www.gisaid.org/'>GISAID</a></p>
+                                         </div>
+                                          " 
+                                          ></span>
+                                        </div>
+                                      {% endfor %}
+                                     {% endfor %}
                                      </div>
-                                      " 
-                                      ></span>
+                                     <div style="clear:left;padding:1px 0">
+                                      <p style="margin-top:15px"><a href="/covid19/dwl/fasta/{{variant_genome}}/{{protname}}" class="btn btn-default btn-xs" role="button">Download fasta <span title="Save data" class="glyphicon glyphicon-download-alt"></span></a></p>
                                     </div>
-                                  {% endfor %}
-                                   </div>
-                                   <div style="clear:left;padding:1px 0">
-                                    <p style="margin-top:15px"><a href="/covid19/dwl/fasta/{{variant_genome}}/{{protname}}" class="btn btn-default btn-xs" role="button">Download fasta <span title="Save data" class="glyphicon glyphicon-download-alt"></span></a></p>
-                                  </div>
                                 {% endfor %}
                               <p>
                                 <button  class="btn btn-link nglCallBtn btn_clear_section" id="btn_clear_mutations" data-selector=".rep_mutation.active"  style="color:#DC143C;">Clear</button>
@@ -805,26 +807,32 @@
                   <div class="row">
                       <div class="section_pan super_sectiontitle collapsable_sec"  data-toggle="collapse" data-target="#analysis_variant_impact_opt"><span>Variant impact </span><span  class="glyphicon glyphicon-chevron-up arrow"></span></div> 
                   </div>
-                  <div id="analysis_variant_impact_opt" class="collapse in" style="padding-left:15px;" data-variantimpact_def="{% if variantimpact_def %}true{% else %}false{% endif %}" >
-                  {% if isolates_in_seq %}
+                  <div id="analysis_variant_impact_opt" class="collapse in" style="padding-left:15px;"  data-variantimpact_def="{% if variantimpact_def %}true{% else %}false{% endif %}">
+                  {% if muts_in_model %}
 
                     <p id="selected_var" style="margin:10px 0">
-                      <span class="default">Please select a variant from the sequence:</span>
+                      <span class="default subsection_infotext">Select a variant from the sequence to obtain its impact score as well as mutation effect and time-dependent descriptors:</span>
                       <span class="loading_var" style="display:none">
                         Selected:                             
                         <img class="loading_var" style="height:20px;" src="{% static 'view/images/loading-gear.gif' %}" />
                       </span>
                       <span class="active_pos" style="display:none">
                         Selected:
-                        <span class="selected_prot_name" style="font-weight: bold"></span>                             
-                        <span class="selected_var_name" data-position="" style="font-weight: bold"></span>
+                        <span style="font-size:12px;background-color:lightgrey;padding:5px;border-radius:2px;">
+                          <span class="selected_prot_name" style="font-weight: bold"></span>                             
+                          <span class="selected_var_name" data-position="" style="font-weight: bold"></span>
+                        </span>
                       </span>
                     </p>
                     <div style="margin:10px 0">
-                        Isolate: <select id="select_isolate" style="font-size:12px">
-                           <option value="all">
-                              All
-                           </option>
+
+
+                      Display isolate:<span class="input_state"><input id="select_isolate" class="form-control input-sm" style="margin-left:5px;max-width:200px" placeholder="e.g. all, {{isolates_in_seq_placeholder}}, ..."></span>
+
+                      <span id="select_isolate_res" style="font-weight:bold">{% if variant_genome %}{{variant_genome}}{% else %}All isolates{% endif %}</span>
+
+                       <!-- Isolate: <select id="select_isolate" style="font-size:12px" class="selectpicker"  multiple data-live-search="true"  data-selected-text-format="count" data-size="5" data-dropup-auto="false" title="All">
+
                            {% for isolate in isolates_in_seq %}
                               <option value="{{isolate}}"
                               {% if variant_genome and variant_genome in isolates_in_seq %}
@@ -835,12 +843,19 @@
                               >{{isolate}}</option>
                            {% endfor %}
                         </select>
+
+                        <button class="btn btn-link selectpicker_clear remove_icon_btn" data-target="#select_isolate"  ><span class="glyphicon glyphicon-remove-circle"></span></button>
+                      -->
+                        <img id="loading_isolates" style="height:20px;display:none" src="{% static 'view/images/loading-gear.gif' %}" />
+                    </div>
+                    <div id="no_muts_in_struc" style="padding:10px;{% if variant_genome and not some_mut_in_struc %}display:block{% else %}display:none{% endif %}" class="alert alert-info">
+                      <strong><span class="glyphicon glyphicon-info-sign"></span></strong> The mutations in the selected isolate are found outside of the protein region represented in this structure. Thus, no variants are shown here. <strong>Select another isolate or "all"</strong> to study other variants. 
                     </div>
                     <div id="seq_w_variants" style="margin-left:-50" class="row finpseq_to_model" data-finpseq_to_model="{{finpseq_to_model_json}}">
                       <span id="seq_sel_var_add"></span>
                       {% for prot_name, thisfinpseq_to_model in finpseq_to_model.items %}
                         <div style="display:inline-block;margin-bottom:10px">
-                         <div style="font-weight: bold;margin-left:50">{{prot_name}}</div>
+                        <div style="font-weight: bold;margin-left:50">{{prot_name}}</div>
 
                           <div style="float:left;font-size:10px;margin-bottom:5px;position:relative;">
                             <div style="clear: left;width:50px;height:15px;text-align:right;margin-right:5px">AA</div>
@@ -853,23 +868,33 @@
                             <div id="prot{{forloop.parentloop.counter}}_pos{{forloop.counter}}" data-protein_name="{{prot_name}}" class="seq_sel seq_prot_{{prot_name|str_to_ref}} seq_pos_{{finpseq}} 
                             {% if 'pos_variants' in model_details %}
                                   hasvariants 
-                                  {% if variant_genome  and variant_genome in isolates_in_seq %}
-                                    {% if variant_genome in model_details.all_isolates %}
-                                      activeseqpos
-                                    {% endif %} 
+                                  {% if variant_genome %}
+                                    {% with selected_var_positions|get_item:prot_name as mut_positions %}
+                                      {% if finpseq|toint in  mut_positions %}
+                                        activeseqpos
+                                      {% endif %} 
+                                    {% endwith %}
                                   {% else %} 
                                     activeseqpos
                                   {% endif %} 
-                                  {% for isolatenm in model_details.all_isolates %} {{isolatenm}} {% endfor %}
                             {% endif %}
-                                  "
+                                  " 
                                     {% if 'wt_aa' in  model_details %}
                                       data-toggle="tooltip"
                                       data-html="true"
                                       title="WT: {{model_details.wt_aa}}<br>PDB: {{model_details.aa}}"
                                     {% endif %}
 
-                                    data-varinfo="{{model_details.pos_variants|json_dump}}">
+                                    {% if selected_var_data %}
+                                        {% with selected_var_data|get_item:prot_name as selected_mutpos %}
+                                          {% with selected_mutpos|get_item:finpseq as selected_muts %}
+                                            data-varinfo="{{selected_muts|json_dump}}"
+                                          {% endwith %} 
+                                        {% endwith %}
+                                      {% else %}
+                                        data-varinfo="{{model_details.pos_variants|json_dump}}"
+                                      {% endif %}
+                                    >
                               <div  class="seq_sel_pos_aa seq_sel_pos">{% if 'wt_aa' in  model_details %}{{model_details.wt_aa}}({{model_details.aa}}){% else %}{{model_details.aa}}{% endif %}</div>
                               <div  class="seq_sel_pos_seqpos seq_sel_pos" >{{finpseq}}</div>
                               <div  class="seq_sel_pos_pdbpos seq_sel_pos" >{{model_details.seqpos}}</div>
@@ -901,9 +926,8 @@
                    <div id="var_impact_score" class="collapse in parent_section">
 
                      <div class="row" class="subsectionbody">
-                      <p class="var_impact_selected_none">Please select a variant from the sequence above.</p>
-                      <div id="var_impact_data_effect" style="display:none" class="var_impact_selected" data-impact_per_var="{{impact_per_var}}">
-
+                      <p class="var_impact_selected_none subsection_infotext">Select a variant from the sequence above to obtain its impact score as well as mutation effect and time-dependent descriptors.</p>
+                      <div id="var_impact_data_effect" class=" " data-impact_per_var="{{impact_per_var}}">
                         {% if variant_impact_param_weights %}
                         <div class="row" style="margin-top:10px;margin-bottom:10px">
                           <div class="btn-group">
@@ -1071,8 +1095,7 @@
 
                         <div id="var_impact_score_result" class="result_box row" style="display:inline"> 
 
-
-                          <div id="var_impact_score_common_section" class="row" >
+                          <div id="var_impact_score_common_section" class="row" style="display:none">
                             <div  class="well" style="padding:10px;">
                               <div class="" style="text-align:center">
                                 <p style="font-weight:bold;font-size:19px;margin-bottom:0">Score</p>
@@ -1086,7 +1109,7 @@
                                     <span class="var_impact_selected_resid"></span>, chain <span class="var_impact_selected_chain"></span>)</span>
                                 </div>
                                 <div id="var_impact_score_common" class="show_if_impactscore_result" style="font-size:30px;margin:10px"></div>
-                                <div class="show_if_impactscore_result" style="font-size:20px;margin:0 0 10px 0;display:none">q=<span id="var_impact_score_pval">0.5</span> <span class="glyphicon glyphicon-info-sign hovertexttooltip" data-toggle="tooltip" data-title="Position of the impact score in the distribution of scores over all variants, where 0 is the minumum, 1 the maximim and 0.5 the median." style="cursor:pointer;font-size:15px;color:#808080;"></span></div>
+                                <div class="show_if_impactscore_result" style="font-size:20px;margin:0 0 10px 0;display:none">q=<span id="var_impact_score_pval">0.5</span> <span class="glyphicon glyphicon-info-sign hovertexttooltip" data-toggle="tooltip" data-title="Position of the impact score in the distribution of scores over all variants, where 0 is the minimum, 1 the maximum and 0.5 the median." style="cursor:pointer;font-size:15px;color:#808080;"></span></div>
                               </div>
                               <span id="is_default_score" class="subsection_infotext" style="display:none"><span class="glyphicon glyphicon-info-sign"></span> This is a default score. You can refine your score above, in "Mutation effect" and "Time-dependent".</span>
                               <span class="subsection_infotext show_if_NO_impactscore_result" style="display:none"><span class="glyphicon glyphicon-info-sign"></span> No parameters selected. Select some parameter above to obtain an impact score.</span>
@@ -1159,7 +1182,10 @@
       <link rel="stylesheet" type="text/css" href="{% static 'view/fplot2/docs/css/flareplot-main.css' %}" />
       <script src="{% static 'view/fplot2/d3.v3.min.js' %}"></script>
       <script src="{% static 'view/fplot2/docs/js/flareplot-main.js' %}"></script><!-- D:< -->
-
 <!-- End Flare plots -->
+<!-- Bootstrap select -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.8.1/css/bootstrap-select.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.8.1/js/bootstrap-select.js"></script>
+<!-- End Bootstrap select -->
 {% endblock %}
 </body>

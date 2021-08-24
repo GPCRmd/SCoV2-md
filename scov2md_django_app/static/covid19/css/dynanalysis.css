@@ -359,6 +359,8 @@
 }
 
 
+
+
 #seq_sel_var_opt{
   border: 1px solid  #bfbfbf; 
   border-radius: 2px;
@@ -603,3 +605,16 @@
   overflow: auto;
 }
 
+
+/* new! */
+.remove_icon_btn{
+    color:#DC143C;
+    padding:0
+}
+.remove_icon_btn:hover{
+    color:#bb1133;
+ }
+ .remove_icon_btn:active{
+    color:#bb1133;
+ }
+ /* end new! */

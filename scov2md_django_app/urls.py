@@ -21,11 +21,14 @@ urlpatterns = [
     url(r'^ajax_rmsd/$', views.ajax_rmsd, name='ajax_rmsd'),
     url(r'^ajax_rmsf/$', views.ajax_rmsf, name='ajax_rmsf'),
     url(r'^ajax_variant_impact/$', views.ajax_variant_impact, name='ajax_variant_impact'),
+    url(r'^ajax_muts_in_isolate/$', views.ajax_muts_in_isolate, name='ajax_muts_in_isolate'),
+    url(r'^ajax_autocomp_isolates/$', views.ajax_autocomp_isolates, name='ajax_autocomp_isolates'),
     url(r'^dwl/(?P<dyn_id>[0-9]+)/(?P<obj_type>[a-z]+)/(?P<obj_id>[0-9]+)/$', views.download_data, name="download_data"),
     url(r'^dwl/fasta/(?P<genome_id>EPI_ISL_\d+)/(?P<prot_name>\w+)/$', views.download_fasta, name="download_fasta"),
     url(r'^quickloadall/$', views.quickloadall, name="quickloadall"),
     url(r'^dwl/variantimpact/(?P<dyn_id>[0-9]+)/(?P<traj_id>[0-9]+)/(?P<position>[0-9]+)/(?P<analysis>\w+)/$', views.download_varimpact, name='download_varimpact'),
     url(r'^dwl/variantscores_traj/(?P<dyn_id>[0-9]+)/(?P<traj_id>[0-9]+)/(?P<protein>\w+)/(?P<position>[0-9]+)/(?P<variant>\w[0-9]+\w)/(?P<parameters_me>[\w_,]+)/(?P<parameters_td>[\w_,]+)/$', views.download_varscores_traj, name='download_varscores_traj'),
     url(r'^dwl/variantscores_all/(?P<dyn_id>[0-9]+)/$', views.download_variantscores_all, name='download_variantscores_all'),
+#    url(r'^(?P<dyn_id>[0-9]+)/$', views.index, name='index'),
 ]
 

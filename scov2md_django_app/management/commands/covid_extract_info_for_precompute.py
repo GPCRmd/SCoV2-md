@@ -44,9 +44,17 @@ class Command(BaseCommand):
             return(residues)
 
         def get_var_data():
-            found_muts=CovidMutations.objects.annotate(prot_name=F("id_sequence__covidsequencedgene__id_final_protein__name"))
-            found_muts=found_muts.annotate(isolate_id=F("id_sequence__covidsequencedgene__id_isolate__isolate_id"))
-            found_muts_vals=found_muts.values("resid","resletter_from","resletter_to","prot_name","isolate_id")
+
+
+            found_muts=CovidMutatedPos.objects.annotate(prot_name=F("id_final_protein__name"))
+            #found_muts=CovidMutatedPos.objects.annotate(prot_name=F("id_final_protein__name"))
+            #found_muts=found_muts.annotate(isolate_id=F("covidsequence__covidsequencedgene__id_isolate__isolate_id"))
+            found_muts_vals=found_muts.values("resid","resletter_from","resletter_to","prot_name")
+
+
+#            found_muts=CovidMutations.objects.annotate(prot_name=F("id_sequence__covidsequencedgene__id_final_protein__name"))
+#            found_muts=found_muts.annotate(isolate_id=F("id_sequence__covidsequencedgene__id_isolate__isolate_id"))
+#            found_muts_vals=found_muts.values("resid","resletter_from","resletter_to","prot_name","isolate_id")
             var_by_finp_pos={}
             for myvar in found_muts_vals:
                 prot_name=myvar["prot_name"]

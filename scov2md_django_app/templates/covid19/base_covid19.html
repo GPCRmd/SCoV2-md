@@ -122,11 +122,12 @@
         <span class="icon-bar"></span>
 
       </button>
-         <div style="min-width: 170px">
+
+        <div style="min-width: 170px">
           <a href="/covid19/home/" class="navbar-brand" style="">
             <img class="img-responsive" src="{% static 'covid19/images/scov2-md_sq.png' %}" style="width:40px;float:left;top:-15px;position:relative;margin-right:10px;padding-top:4px">
             <div style="float:left">SCoV2-MD</div></a>
-          </div>
+        </div>
         </div>
         <div id="navbar" class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
@@ -148,6 +149,11 @@
         </div>
       </div>
     </nav>
+
+
+<!--<div class="alert alert-warning alert-dismissible" style="padding:5px 30px 5px 10px;margin:10px 20px;position:absolute;z-index:10">
+    <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a><span class="glyphicon glyphicon-warning-sign"></span> <strong>We are currently updating the server.</strong> As a consequence, some functionalities will be unavailable during the next 2-3 hours, and the server may be slow during this time. We apologize for any inconvenience this may cause.</div>-->
+
 
 
         {% block content %}{% endblock %}

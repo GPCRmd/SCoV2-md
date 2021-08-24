@@ -106,7 +106,6 @@ def extract_table_info(request,mydyn):
             dyndata[dyn_id]["membrane_comp"].add(dynval["molecule_name"])
         if dynval["finalprot"]:
             dyndata[dyn_id]["included_prot"].add(dynval["finalprot"])
-    #context["tabledata"]=dyndata.values()
     context["tabledata"]=sorted(dyndata.values(),key=lambda x:x["dyn_id"])
     return context
 
@@ -254,9 +253,9 @@ def get_variant_impact_parameters():
                     "multiple_options": [('Kyte Doolittle scale', 'variant_hp_kyte_doolittle'),
                                          ('Kyte Doolittle 2 scale', 'variant_hp_kyte_doolittle_2'),
                                          ('Eisenberg Weiss scale', 'variant_hp_eisenberg_weiss'),
-                                         ('Engleman scale', 'variant_hp_engleman'),
+                                         ('Engelman scale', 'variant_hp_engleman'),
                                          ('Hessa scale', 'variant_hp_hessa'),
-                                         ('Hoop Woods scale', 'variant_hp_hoop_woods'),
+                                         ('Hopp Woods scale', 'variant_hp_hoop_woods'),
                                          ('Janin scale', 'variant_hp_janin'),
                                          ('Moon Fleming scale', 'variant_hp_moon_fleming'),
                                          ('Wimley White scale', 'variant_hp_wimley_white'),
@@ -342,7 +341,7 @@ def get_variant_impact_parameters():
                     "details":"Predicted change in the protein's folding Gibbs Free Energy change caused by this mutation. Values greater than 1 are considered significantly destabilising and those less than -1 stabilising. Data from <a href='http://sars.mutfunc.com' target='_blank'>Mutfunc: SARS-CoV-2</a>. Template: <span class='variant_mutfunc_template'></span>"},
             ]
         ),
-        #Experimental Antibody Escape
+        #Experimental Antibody escape
         (
             "Experimental",
             [
@@ -502,7 +501,6 @@ def get_variant_impact_param_weights(has_spike):
     params_rmsf_contacts_d={"name":"RMSF & contacts", "weights":json.dumps(params_rmsf_contacts)}
     predef_weights.append(params_rmsf_contacts_d)
     return predef_weights
-
 
 def extract_report_data(dyn_id):
     mydyn=CovidDynamics.objects.filter(id=dyn_id)
@@ -674,9 +672,161 @@ def nglsel_from_chainsandpos(chainpos):
 
 
 
+def get_time():
+    mytime=datetime.datetime.today()
+    myhour=mytime.hour
+    mymin=mytime.minute
+    return (myhour,mymin)
 
+
+def get_mut_data(found_mut,prot_to_finalprot,upseq_to_model):
+    """
+    Takes a dictionary from iterating queryobject.values() and creates a dictionary with info on the mutation
+    """
+    prot_name=found_mut["prot_name"]        
+    thismut_d={}
+    resid_fp=found_mut["resid"]
+
+    pos_from_up=prot_to_finalprot[prot_name]["finalprot_seq_start"]
+    resid_up=resid_fp+(pos_from_up-1)
+    thismut_d["resid_up"]=resid_up
+    mut_model_pos=upseq_to_model.get(resid_up,None)
+
+    mut_name="%s%s%s"%(found_mut["resletter_from"],resid_fp,found_mut["resletter_to"])
+    thismut_d["mut_name"]=mut_name
+    thismut_d["resid_finprot"]=resid_fp
+    thismut_d["resletter_to"]=found_mut["resletter_to"]
+    thismut_d["resletter_from"]=found_mut["resletter_from"]
+    if mut_model_pos:
+        thismut_d["model_sel"]="%s:%s"%(mut_model_pos["seqpos"],mut_model_pos["chain"])
+    else:
+        thismut_d["model_sel"]=False
+    return thismut_d
+
+
+def get_mutations_in_isolate(sel_genome_id,included_prots,prot_to_finalprot,upseq_to_model):
+    """
+    mutations in the selected isolate (for the viewer)
+    """
+    mut_in_sel_isolate={}
+    some_mut_in_struc=False
+    if sel_genome_id:
+#        found_muts=CovidMutatedPos.objects.filter(id_sequence__covidsequencedgene__id_isolate__isolate_id=sel_genome_id)
+
+        if type(sel_genome_id)== list:
+            found_muts=CovidMutatedPos.objects.filter(covidsequence__covidsequencedgene__id_isolate__isolate_id__in=sel_genome_id)
+
+        else:
+            found_muts=CovidMutatedPos.objects.filter(covidsequence__covidsequencedgene__id_isolate__isolate_id=sel_genome_id)
+#        found_muts=found_muts.annotate(prot_name=F("id_sequence__covidsequencedgene__id_final_protein__name")).filter(prot_name__in=included_prots).distinct()
+        found_muts=found_muts.annotate(prot_name=F("id_final_protein__name")).filter(prot_name__in=included_prots).distinct()
+        found_muts_vals=found_muts.values("resid","resletter_from","resletter_to","prot_name")
+
+
+
+        for found_mut in found_muts_vals:
+            prot_name=found_mut["prot_name"]
+            thismut_d=get_mut_data(found_mut,prot_to_finalprot,upseq_to_model)
+            if prot_name not in mut_in_sel_isolate:
+                mut_in_sel_isolate[prot_name]={}
+            mut_resid_finprot=thismut_d["resid_finprot"]
+            if mut_resid_finprot not in mut_in_sel_isolate[prot_name]:
+                mut_in_sel_isolate[prot_name][mut_resid_finprot]={}
+            mut_name=thismut_d["mut_name"]
+            mut_in_sel_isolate[prot_name][mut_resid_finprot][mut_name]=thismut_d
+            if thismut_d["model_sel"]:
+               some_mut_in_struc=True 
+    return mut_in_sel_isolate,some_mut_in_struc
+
+def load_mutated_isolates_in_finalprot(finprot):
+    finp_iso_path="/protwis/sites/files/Precomputed/covid19/finprot_to_isolates"
+    isolates_in_prot=set()
+    finprot_nm=finprot.lower().replace(" ","_")
+    finp_iso_file=os.path.join(finp_iso_path,"%s.data"%finprot_nm)
+    if os.path.isfile(finp_iso_file):
+        with open(finp_iso_file,"rb") as fh:
+            isolates_in_prot=pickle.load(fh)
+    else:
+        print("Precomp. file with isolates in %s not found. Extracting from db (slower option)" % finprot)
+        iter_iso=CovidIsolate.objects.filter(covidsequencedgene__id_final_protein__name=finprot).values_list("isolate_id",flat=True).iterator()
+        isolates_in_prot=set()
+        for iso in iter_iso:
+            isolates_in_prot.add(iso)
+
+    return (isolates_in_prot)
+
+
+
+#def save_isolates_in_prots_session(request,dyn_id,included_prots):
+#    if request.session.get('isolates_in_seq', False):
+#        session_isolates=request.session["isolates_in_seq"]
+#        print("\n\n")
+#        print(session_isolates.keys())
+#        print("\n\n")
+#    else:
+#        session_isolates={}
+#    if dyn_id in session_isolates:
+#        sess_isolates_in_seq=session_isolates[dyn_id]
+#    else:
+#        sess_isolates_in_seq=load_mutated_isolates_in_finalprot(included_prots)
+#
+#        session_isolates[dyn_id]= sess_isolates_in_seq
+#        request.session['isolates_in_seq']=session_isolates
+#    return sess_isolates_in_seq
+
+def save_isolates_in_prots_session(request,included_prots):
+    if request.session.get('isolates_in_seq', False):
+        session_isolates=request.session["isolates_in_seq"]
+    else:
+        session_isolates={}
+    example_iso=""
+    for fin_prot in included_prots:
+        if fin_prot in session_isolates:
+            sess_isolates_in_seq=session_isolates[fin_prot]
+        else:
+            sess_isolates_in_seq=load_mutated_isolates_in_finalprot(fin_prot)
+        session_isolates[fin_prot]= sess_isolates_in_seq
+        request.session['isolates_in_seq']=session_isolates
+
+        for e in sess_isolates_in_seq:#just to collect 1 example
+            example_iso=e
+            break
+    return example_iso  
+
+
+def search_isolate_autocomp(request):
+    q=request.GET.get('search', '').upper()
+    #dyn_id=str(request.GET.get('dyn_id'))
+    prots_s=str(request.GET.get('prots'))
+    final_prots=prots_s.split(",")
+    isolates_in_seq=set()
+    if request.session.get('isolates_in_seq', False):
+        session_isolates=request.session["isolates_in_seq"]
+        for prot in final_prots:
+            if prot in session_isolates:
+                isolates_in_thisprot=session_isolates[prot]  
+                if isolates_in_thisprot:
+                    isolates_in_seq=isolates_in_seq.union(isolates_in_thisprot)
+    isolates_in_seq.add("ALL")
+    max_len=10
+    added_n=0
+    results=[]
+    for e in isolates_in_seq:
+        if e.startswith(q):
+            results.append(e)
+            added_n+=1
+        if added_n>max_len:
+            break
+    return results
+
+
+def ajax_autocomp_isolates(request):
+    if request.is_ajax():
+        results=search_isolate_autocomp(request)
+        return HttpResponse(json.dumps(results), 'application/json')
 
 def dynanalysis(request,dyn_id,sel_genome_id=None,variantimpact_def=False):
+    request.session.set_expiry(0) 
     context={}
 
     # TO ADD: 
@@ -689,8 +839,8 @@ def dynanalysis(request,dyn_id,sel_genome_id=None,variantimpact_def=False):
     else:
         warning_load={"trajload":True,"heavy":True}
     context["warning_load"]=json.dumps(warning_load)
-
     context["variantimpact_def"]=variantimpact_def
+
 
     dyndata_report=extract_report_data(dyn_id)
 
@@ -748,6 +898,7 @@ def dynanalysis(request,dyn_id,sel_genome_id=None,variantimpact_def=False):
         context["molecules"].append(molinfo)
 
     included_prots={e.name for e in d.id_model.final_proteins.all()}
+    context["included_prots"]=json.dumps(list(included_prots))
     prot_to_finalprot_obj=CovidProteinFinalprotein.objects.annotate(prot_name=F("id_finalprotein__name")).filter(prot_name__in=included_prots,id_protein__in=d.id_model.proteins.all())
     prot_to_finalprot_obj_val=prot_to_finalprot_obj.values("finalprot_seq_start","finalprot_seq_end","prot_name")
     prot_to_finalprot={e["prot_name"]:e for e in prot_to_finalprot_obj_val}
@@ -856,79 +1007,87 @@ def dynanalysis(request,dyn_id,sel_genome_id=None,variantimpact_def=False):
     context["domains"]=alldominfo
 
     # Extract variants in the protein(s). If selected isolate, make a list of variants in it
-    context["var_data"]=False
+    context["selected_var_data"]=False
     context["variant_genome"]=sel_genome_id
-#    if sel_genome_id:
-    found_muts=CovidMutations.objects.annotate(prot_name=F("id_sequence__covidsequencedgene__id_final_protein__name")).filter(prot_name__in=included_prots)
-    found_muts=found_muts.annotate(isolate_id=F("id_sequence__covidsequencedgene__id_isolate__isolate_id"))
-    found_muts_vals=found_muts.values("resid","resletter_from","resletter_to","prot_name","isolate_id")
-    mut_in_sel_isolate={}
+
+########################
+
+#   mut_in_sel_isolate - mutations in the selected isolate (for the viewer)
+#   isolates_in_seq - set of all isolates involving the modeled part of this protein
+#   finpseq_to_model - for each finprot. residue, data of mutations involved
+#       all_isolates contains the list of isolates involving each position
+#           I would instead generate a dict of isolates to involved pos
+
+
+    (mut_in_sel_isolate,some_mut_in_struc)=get_mutations_in_isolate(sel_genome_id,included_prots,prot_to_finalprot,upseq_to_model)
+    context["some_mut_in_struc"]=some_mut_in_struc
+    example_iso=save_isolates_in_prots_session(request,included_prots)
+    context["isolates_in_seq_placeholder"]=example_iso
+
+#        test_gupdate=True
+#        if test_gupdate:
+#            isolates_in_seq=['EPI_ISL_1097311', 'EPI_ISL_1109968', 'EPI_ISL_1210530', 'EPI_ISL_1210531', 'EPI_ISL_1210532', 'EPI_ISL_1210533', 'EPI_ISL_1210534', 'EPI_ISL_1210536', 'EPI_ISL_1210537', 'EPI_ISL_1210538']#[!]
+#
+#        else:
+#            isolates_in_seq=CovidIsolate.objects.filter(covidsequencedgene__id_final_protein__name__in=included_prots).distinct().values_list("isolate_id",flat=True)
+#        context["isolates_in_seq"]=isolates_in_seq
+
+
+
+#found_muts=CovidMutatedPos.objects.filter(id_sequence__covidsequencedgene__id_final_protein__name__in=included_prots).distinct()
+#for mut in found_muts:
+#    mut_seq_gene_li=mut.id_sequence.covidsequencedgene_set.all()
+#    mut_isolates=CovidIsolate.objects.filter(covidsequencedgene__id_sequence=mut.id_sequence)
+#    isolates_w_mut=[iso.isolate_id for iso in mut_isolates]
+
+    ####
+
+    ####
+
+    found_muts=CovidMutatedPos.objects.annotate(prot_name=F("id_final_protein__name")).filter(prot_name__in=included_prots).distinct()
+    #found_muts=CovidMutatedPos.objects.annotate(prot_name=F("id_sequence__covidsequencedgene__id_final_protein__name")).filter(prot_name__in=included_prots).distinct()
+    #found_muts=found_muts.annotate(isolate_id=F("id_sequence__covidsequencedgene__id_isolate__isolate_id"))#[!]
+    #found_muts=found_muts[:500]
+    found_muts_vals=found_muts.values("resid","resletter_from","resletter_to","prot_name")# isolate_id #[!]
+
     #mut_in_seq={}
-    isolates_in_seq=set()
+    muts_in_model=False
     for found_mut in found_muts_vals:
-        isolate_id=found_mut["isolate_id"]
-        prot_name=found_mut["prot_name"]        
-        #if prot_name not in mut_in_seq:
-        #    mut_in_seq[prot_name]={}
-        thismut_d={}
-        resid_fp=found_mut["resid"]
+        #isolate_id=found_mut["isolate_id"]#[!]
 
-        pos_from_up=prot_to_finalprot[prot_name]["finalprot_seq_start"]
-        resid_up=resid_fp+(pos_from_up-1)
-        thismut_d["resid_up"]=resid_up
-        mut_model_pos=upseq_to_model.get(resid_up,None)
-
-        mut_name="%s%s%s"%(found_mut["resletter_from"],resid_fp,found_mut["resletter_to"])
-        thismut_d["mut_name"]=mut_name
-        thismut_d["isolate_id"]={isolate_id}
-        thismut_d["resid_finprot"]=resid_fp
-        thismut_d["resletter_to"]=found_mut["resletter_to"]
-        thismut_d["resletter_from"]=found_mut["resletter_from"]
-        if mut_model_pos:
-            thismut_d["model_sel"]="%s:%s"%(mut_model_pos["seqpos"],mut_model_pos["chain"])
-        else:
-            thismut_d["model_sel"]=False
-        if mut_model_pos:
-            #if resid_fp not in mut_in_seq[prot_name]:
-            #    mut_in_seq[prot_name][resid_fp]={}
-            #if mut_name not in mut_in_seq[prot_name][resid_fp]:
-            #    mut_in_seq[prot_name][resid_fp][mut_name]=thismut_d
-            #    isolates_in_seq.add(isolate_id)
-            #else:
-            #    mut_in_seq[prot_name][resid_fp][mut_name]["isolate_id"].add(isolate_id)
-        
-
+        thismut_d=get_mut_data(found_mut,prot_to_finalprot,upseq_to_model)
+        if thismut_d["model_sel"]: #if mutation is in the model
+            muts_in_model=True
+            prot_name=found_mut["prot_name"]
+            resid_fp=thismut_d["resid_finprot"]
             thisres_data=finpseq_to_model[prot_name][resid_fp]
             if "pos_variants" not in thisres_data:
                 thisres_data["pos_variants"]={}
+            mut_name=thismut_d["mut_name"]
             if mut_name not in thisres_data["pos_variants"]:
                 thisres_data["pos_variants"][mut_name]=thismut_d
-                isolates_in_seq.add(isolate_id)
                 wt_aa=thismut_d["resletter_from"]
                 pdb_aa=thisres_data["aa"]
                 if wt_aa != pdb_aa:
                     thisres_data["wt_aa"]=wt_aa
-            else:
-                thisres_data["pos_variants"][mut_name]["isolate_id"].add(isolate_id)
+            #if "all_isolates" not in thisres_data:
+            #    thisres_data["all_isolates"]=set()
+            #thisres_data["all_isolates"].add(isolate_id) #[!]
 
-        if sel_genome_id and isolate_id ==sel_genome_id:
-            if prot_name not in mut_in_sel_isolate:
-                mut_in_sel_isolate[prot_name]=[]
-            mut_in_sel_isolate[prot_name].append(thismut_d)
-    for prot,protpos in finpseq_to_model.items():
-        for seqpos,posdata in protpos.items():
-            pos_variants=posdata.get("pos_variants")
-            all_pos_iso=set()
-            if pos_variants:
-                for myvar in pos_variants.values():
-                    all_pos_iso=all_pos_iso.union(myvar["isolate_id"])
-            posdata["all_isolates"]=list(all_pos_iso)
+            found_mut["resid"]
 
+    mut_in_sel_isolate_mutpos={}
+    for prot,posvar_d in mut_in_sel_isolate.items():
+        mut_in_sel_isolate_mutpos[prot]=list(posvar_d.keys())
+    
+    context["selected_var_data"]=mut_in_sel_isolate
+    context["selected_var_positions"]=mut_in_sel_isolate_mutpos
+
+
+    context["muts_in_model"]=muts_in_model
     context["finpseq_to_model"]=finpseq_to_model
     context["finpseq_to_model_json"]=json.dumps(recursive_prepare_json_dump( copy.deepcopy(finpseq_to_model)))
-    context["var_data"]=mut_in_sel_isolate
     #context["mut_in_seq"]=mut_in_seq
-    context["isolates_in_seq"]=sorted(list(isolates_in_seq))
                 
 
 
@@ -982,6 +1141,8 @@ def dynanalysis(request,dyn_id,sel_genome_id=None,variantimpact_def=False):
     param_weights=get_variant_impact_param_weights(has_spike)
     context["variant_impact_param_weights"]=param_weights#json.dumps(param_weights)
 
+
+    print("\n\nSend!\n\n")
     return render(request, 'covid19/dynanalysis.html', context)
 
 
@@ -1144,6 +1305,34 @@ def load_var_impact_data(filepath,position,is_pandas,analysis,stride=False,delta
 
 def average(lst): 
     return sum(lst) / len(lst) 
+
+
+
+
+def ajax_muts_in_isolate(request):
+    if request.is_ajax() and request.POST:
+        dyn_id= request.POST.get("dyn_id")
+        sel_genome_id= request.POST.get("isolate")
+
+        d=CovidDynamics.objects.get(id=dyn_id)
+        #obtain included_prots
+        included_prots={e.name for e in d.id_model.final_proteins.all()}
+        #obtain prot_to_finalprot
+        prot_to_finalprot_obj=CovidProteinFinalprotein.objects.annotate(prot_name=F("id_finalprotein__name")).filter(prot_name__in=included_prots,id_protein__in=d.id_model.proteins.all())
+        prot_to_finalprot_obj_val=prot_to_finalprot_obj.values("finalprot_seq_start","finalprot_seq_end","prot_name")
+        prot_to_finalprot={e["prot_name"]:e for e in prot_to_finalprot_obj_val}
+        #obtain upseq_to_model
+        model_pos_obj=CovidModelSeqPositions.objects.select_related("id_uniprotpos").filter(id_file__covidfilesdynamics__id_dynamics=dyn_id,id_file__covidfilesdynamics__type=0)
+        upseq_to_model={}
+        for m in model_pos_obj:
+            up_pos=m.id_uniprotpos.seqpos
+            model_details={"seqpos":m.seqpos,"aa":m.aa,"chain":m.chainid}
+            upseq_to_model[up_pos]=model_details
+        (mut_in_sel_isolate,some_mut_in_struc)=get_mutations_in_isolate(sel_genome_id,included_prots,prot_to_finalprot,upseq_to_model)
+
+
+        data_var = {"result":mut_in_sel_isolate,"some_mut_in_struc":some_mut_in_struc}
+        return HttpResponse(json.dumps(data_var), content_type='covid19/'+dyn_id)   
 
 def ajax_variant_impact(request):
     if request.is_ajax() and request.POST:
@@ -2139,6 +2328,16 @@ def get_final_proteins_info():
             finprot[protname_id]["name"]=prot
     return finprot
 
+def sort_list_mod(mylist):
+    if mylist:
+        any_not_number=[e for e in mylist if not str(e).isnumeric()]
+        if any_not_number:
+            return sorted(mylist)
+        else:
+            return sorted(mylist,key=lambda x:float(x))
+    else: 
+        return mylist
+
 def home(request):    
     if request.is_ajax() :
         context={}
@@ -2148,35 +2347,48 @@ def home(request):
                 tree_data = pickle.load(filehandle)
         context["tree_data"]=tree_data
 
-        seqgeneobj=CovidSequencedGene.objects.filter(id_sequence__is_wt=False)
-        myseqgene=seqgeneobj.annotate(genename=F("id_final_protein__name"))
-        myseqgene=myseqgene.annotate(isolateid=F("id_isolate__isolate_id"))
-        myseqgene=myseqgene.annotate(mut_pos=F("id_sequence__covidmutations__resid"))
-        myseqgene=myseqgene.annotate(mut_from=F("id_sequence__covidmutations__resletter_from"))
-        myseqgene=myseqgene.annotate(mut_to=F("id_sequence__covidmutations__resletter_to"))
-        myseqgene=myseqgene.annotate(sequence=F("id_sequence__seq"))
-        genomes_vals=myseqgene.values("genename","isolateid","mut_pos","mut_from","mut_to","sequence")
         genomes_d={}
-        for thisgenome in genomes_vals:
-            if thisgenome["mut_pos"]:
-                isolateid=thisgenome["isolateid"]
-                if isolateid not in genomes_d:
-                    genomes_d[isolateid]={}
-                genename=thisgenome["genename"]
-                if genename not in genomes_d[isolateid]:
-                    genomes_d[isolateid][genename]={}
-                    genomes_d[isolateid][genename]["mutations"]=set()
-                mutseq=thisgenome["sequence"]
-                if thisgenome["sequence"]:
-                    genomes_d[isolateid][genename]["sequence"]=thisgenome["sequence"]
-                mutname="%s%s%s"%(thisgenome["mut_from"],thisgenome["mut_pos"],thisgenome["mut_to"])
-                genomes_d[isolateid][genename]["mutations"].add(mutname)
-
-        for geno in genomes_d.values():
-            for prot, protdict in geno.items():
-                protdict["mutations"]=list(protdict["mutations"])
-
+#        genome_muts_path="/protwis/sites/files/Covid19Data/Data/home_genome_muts.data"
+#        with open(genome_muts_path,"rb") as fh:
+#            genomes_d=pickle.load(fh)
         context["genome_mutations"]=genomes_d
+
+#        genomes_d={}
+#        testing=True 
+#        if not testing:
+#            #generates dict of {isolate: {protein : list of mutations}}
+#                                                    # also includes sequence but we don't need this
+#            # to do
+#            #   - we don't need to check if sequence exists each time we want to provide a fasta link
+#            #   - incorporate the dict of {mutated proteins : mutation list } in the input json
+#            #   with this we won't need to generate this dict
+#            seqgeneobj=CovidSequencedGene.objects.filter(id_sequence__is_wt=False)
+#            myseqgene=seqgeneobj.annotate(genename=F("id_final_protein__name"))
+#            myseqgene=myseqgene.annotate(isolateid=F("id_isolate__isolate_id"))
+#            myseqgene=myseqgene.annotate(mut_pos=F("id_sequence__seq_mutations__resid"))
+#            myseqgene=myseqgene.annotate(mut_from=F("id_sequence__seq_mutations__resletter_from"))
+#            myseqgene=myseqgene.annotate(mut_to=F("id_sequence__seq_mutations__resletter_to"))
+#            myseqgene=myseqgene.annotate(sequence=F("id_sequence__seq"))
+#            genomes_vals=myseqgene.values("genename","isolateid","mut_pos","mut_from","mut_to","sequence")
+#            for thisgenome in genomes_vals:
+#                if thisgenome["mut_pos"]:
+#                    isolateid=thisgenome["isolateid"]
+#                    if isolateid not in genomes_d:
+#                        genomes_d[isolateid]={}
+#                    genename=thisgenome["genename"]
+#                    if genename not in genomes_d[isolateid]:
+#                        genomes_d[isolateid][genename]={}
+#                        genomes_d[isolateid][genename]["mutations"]=set()
+#                    mutseq=thisgenome["sequence"]
+#                    if thisgenome["sequence"]:
+#                        genomes_d[isolateid][genename]["sequence"]=thisgenome["sequence"]
+#                    mutname="%s%s%s"%(thisgenome["mut_from"],thisgenome["mut_pos"],thisgenome["mut_to"])
+#                    genomes_d[isolateid][genename]["mutations"].add(mutname)
+#
+#            for geno in genomes_d.values():
+#                for prot, protdict in geno.items():
+#                    protdict["mutations"]=list(protdict["mutations"])
+
 
 
 
@@ -2220,26 +2432,31 @@ def home(request):
             colors_dict_selectopt[col_var]["name"]=col_var.replace("_"," ").capitalize()
             if col_var in ["date_list","author","submitting_lab","originating_lab"]:
                 continue
-            elif col_var=="age":
+            elif col_var in ["age","mutations"]:
                 new_data_opt=[]
                 date_pair_from=False
-                for dateval,color in var_data.items():
-                  if not date_pair_from:
+                last_color=last_date=False
+                for dateval,color in sorted(var_data.items(),key=lambda x:x[0]):
+                  if not date_pair_from and date_pair_from!=0:
                     date_pair_from=dateval
                   else :
-                    if (color != last_color):
+                    if last_color and (color != last_color):
+                      if not date_pair_from:
+                        date_pair_from=0
                       date_pair_fromto="%s - %s"%(date_pair_from,last_date)
                       new_data_opt.append(date_pair_fromto)
                       date_pair_from=dateval              
                   last_color=color
                   last_date=dateval
+                date_pair_fromto="%s - %s"%(date_pair_from,last_date)
+                new_data_opt.append(date_pair_fromto)
             else:
-                new_data_opt=var_data.keys()
+                new_data_opt=sort_list_mod(var_data.keys())
             colors_dict_selectopt[col_var]["options"]=new_data_opt
-        print(colors_dict_selectopt)
         context["colors_dict_selectopt"]=colors_dict_selectopt
         context["finprot"]=get_final_proteins_info()
-
+        context["num_dyn"]=CovidDynamics.objects.filter(is_published=True).count()
+        context["num_traj"]=CovidFilesDynamics.objects.filter(type=2,id_dynamics__is_published=True).count()
         return render(request, 'covid19/home.html', context)
 
 
@@ -2305,3 +2522,6 @@ def quickloadall(request):
 #    return render(request, 'covid19/report.html', dyndata )
 
 
+#def plottest(request):    
+#    context={}
+#    return render(request, 'covid19/plottest3.html', context)

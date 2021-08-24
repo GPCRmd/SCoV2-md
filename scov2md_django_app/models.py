@@ -224,17 +224,53 @@ class CovidIsolate(models.Model):
 
 
 
-class CovidMutations(models.Model):
+#class CovidMutations(models.Model):
+#    resid = models.SmallIntegerField(null=True)
+#    resletter_from = models.CharField(max_length=1, null=True)
+#    resletter_to = models.CharField(max_length=1, null=True)
+#    id_sequence = models.ForeignKey('CovidSequence', models.DO_NOTHING, blank=True, null=True)
+
+
+#class CovidMutatedPosMutation(models.Model):
+#    id_mutated_pos = models.ForeignKey('CovidMutatedPos', null=True)
+#    id_mutation_fromto = models.ForeignKey("CovidMutation", null=True)
+#    class Meta:
+#        managed = True
+#        unique_together = (('id_mutated_pos', 'id_mutation_fromto'),)
+#
+#class CovidMutation(models.Model):
+#    resletter_from = models.CharField(max_length=1, null=True)
+#    resletter_to = models.CharField(max_length=1, null=True)
+#    class Meta:
+#        unique_together = (('resletter_from', 'resletter_to'),)
+
+
+class CovidSequenceMutatedPos(models.Model):
+    id_mutated_pos = models.ForeignKey('CovidMutatedPos', null=True)
+    id_sequence = models.ForeignKey("CovidSequence", null=True)
+    class Meta:
+        managed = True
+        unique_together = (('id_mutated_pos', 'id_sequence'),)
+
+
+class CovidMutatedPos(models.Model):
+   # id_sequence = models.ForeignKey('CovidSequence', models.DO_NOTHING, blank=True, null=True)
+    id_final_protein = models.ForeignKey('CovidFinalProtein', models.DO_NOTHING, blank=True, null=True)
     resid = models.SmallIntegerField(null=True)
+
     resletter_from = models.CharField(max_length=1, null=True)
     resletter_to = models.CharField(max_length=1, null=True)
-    id_sequence = models.ForeignKey('CovidSequence', models.DO_NOTHING, blank=True, null=True)
-    #mutfinc_data = models.OneToOneField(CovidMutfuncData,null=True, blank=True)
+
+
+    #pos_mutations = models.ManyToManyField('CovidMutation',through='CovidMutatedPosMutation',null=True)
+    class Meta:
+        unique_together = (('resid', 'id_final_protein','resletter_from','resletter_to'),)
 
 class CovidSequence(models.Model):
     is_wt= models.BooleanField(default=True)
     seq= models.CharField(max_length=3000,blank=True, null=True)
-    seq_idx_table = models.IntegerField(unique=True)
+    seq_idx_table = models.IntegerField(unique=True,blank=True, null=True)
+    seq_mutations = models.ManyToManyField('CovidMutatedPos',through='CovidSequenceMutatedPos',null=True)
 
 
 class CovidSequencedGene(models.Model):

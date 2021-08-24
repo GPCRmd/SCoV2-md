@@ -104,7 +104,6 @@
                       <option value="{{myvar.0}}" >{{myvar.1}}</option>
                     {% endif %}
                    {% endfor %}
-                   <option value="has_mutations" >Mutations</option>
                 </select>
                 </div>
                 <div class="phyltree_option" >
@@ -113,7 +112,7 @@
                   <select  id="phyltree_filter" class="selectpicker"  multiple data-live-search="true"  data-selected-text-format="count" data-size="10">
                     {% for param_id, param_data in colors_dict_selectopt|sort_dict_by_key %}
                       <optgroup label="{{param_data.name}}">
-                        {% for opt in param_data.options|sort_list %}
+                        {% for opt in param_data.options %}
                           <option value="{{param_id}}__{{opt}}" >{{param_data.name}}: {{opt}}</option>
                         {% endfor %}
                       </optgroup>
@@ -149,7 +148,7 @@
     </div>
     <div style="background-color: #dbebf0;padding:40px 20px">
       <p> Data obtained from <a href="https://www.gisaid.org/epiflu-applications/phylodynamics/">GISAID.</a></p>
-      <ul>
+      <ul style="list-style-type: none;">
         <li><a href="https://doi.org/10.1093/bioinformatics/bty407">Hadfield et al, Nextstrain: real-time tracking of pathogen evolution, Bioinformatics (2018)</a></li>
         <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5758920/">Sagulenko et al, TreeTime: Maximum-likelihood phylodynamic analysis, Virus Evolution (2017)</a></li>
       </ul>

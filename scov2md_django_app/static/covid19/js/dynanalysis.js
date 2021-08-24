@@ -6,6 +6,7 @@ $(document).ready( function () {
     var struc = $(".str_file").data("struc_file");
     var dyn_id=$(".str_file").data("dyn_id");
     var delta=$("#view_screen").data("delta");
+    var included_prots=$("#view_screen").data("included_prots");
     var pg_framenum=0;
     var ngliframe= $('#embed_mdsrv')[0].contentWindow;
     var trajidtoframenum= $("#selectedTraj").data("trajidtoframenum");
@@ -29,6 +30,8 @@ $(document).ready( function () {
         }
       return mykeys;
     }
+
+
 //-------- Style
 
     function colorsHoverActiveInactive(myselector,activeclass,colorhov,colorNohobAct, colorNohobInact){
@@ -52,6 +55,9 @@ $(document).ready( function () {
     colorsHoverActiveInactive(".traj_element","tsel","#f2f2f2","#FFF7F7","#FFFFFF");
     colorsHoverActiveInactive(".fp_options","is_active","#f2f2f2","#bfbfbf","#FFFFFF");
     colorsHoverActiveInactive(".onclickshow","is_active","#f2f2f2","#FFF7F7","#FFFFFF");
+
+
+
 
 // -------- Manage flare plots ------------
     plot=false;
@@ -681,10 +687,12 @@ $(document).ready( function () {
     }
 
     $("#clearAll").click(function(){
-        var num_active_domains=$(".whiterep_if_act.active").length;
+        // new2
+        /*var num_active_domains=$(".whiterep_if_act.active").length;
         if (num_active_domains > 0){
-            ngliframe.manageNGLReps_dynamic("protein","colorScheme","residueindex");
-        } 
+        } */
+        ngliframe.manageNGLReps_dynamic("protein","colorScheme","residueindex");
+        // end new2
         $(".clickUnclick").each(function(){
             unclickBtn($(this));
         })
@@ -879,7 +887,10 @@ $(document).ready( function () {
         var mysel=$(this).data("selector")
         $(mysel).each(function(){
             unclickBtn($(this))
-            ngliframe.manageNGLReps_dynamic("protein","colorScheme","residueindex");
+            // new2
+            //ngliframe.manageNGLReps_dynamic("protein","colorScheme","residueindex");
+            change_colorscheme_if_noscorecolor("residueindex");
+            // end new2
 
         })
     });
@@ -896,16 +907,40 @@ $(document).ready( function () {
         }            
     }
 
+    // new2
+    function change_colorscheme_if_noscorecolor(colorscheme_name){
+        //Do not trigger change if the impact score colormapping is being used
+        var allow_colorchange=true;
+        if (posColorMap){
+            if ($("#displayinview_var_impact").is(":checked")){
+                allow_colorchange=false;
+            }
+        }
+        if (allow_colorchange){
+            ngliframe.manageNGLReps_dynamic("protein","colorScheme",colorscheme_name);
+        }
+
+    }
+    // end new2
+
     $(".whiterep_if_act").on("click", function(){
         var is_inactivated=$(this).hasClass("active");
         var num_active_domains=$(".whiterep_if_act.active").length;
+
+
         if (is_inactivated){
             if (num_active_domains == 1){
-                ngliframe.manageNGLReps_dynamic("protein","colorScheme","residueindex");
+                // new2
+                //ngliframe.manageNGLReps_dynamic("protein","colorScheme","residueindex");
+                change_colorscheme_if_noscorecolor("residueindex");
+                // end new2
             }
         } else {
             if (num_active_domains == 0){
-                ngliframe.manageNGLReps_dynamic("protein","colorScheme","uniform");
+                // new2
+                change_colorscheme_if_noscorecolor("uniform");
+                //ngliframe.manageNGLReps_dynamic("protein","colorScheme","uniform");
+                // end new2
             }
         }
     })
@@ -1974,8 +2009,8 @@ $(document).ready( function () {
             ngliframe.manageNGLReps(nglname,display);
 
         }
-        if ($(this).attr("id")=="displayinview_var_impact"){
-            var protein_name=$(".seq_sel.selected").data("protein_name");
+        if ($(this).attr("id")=="displayinview_var_impact"){  
+            var protein_name=get_active_protein_name();
             color_ngl_seq(posColorMap,protein_name);
         }
     })
@@ -2187,7 +2222,8 @@ $(document).ready( function () {
 
     triggerUpdateTimedependentData = function(){
         var thisvarname= $(".selected_var_name").html();
-        var protname=$(".seq_sel.hasvariants.selected").data("protein_name");
+        //var protname=$(".seq_sel.hasvariants.selected").data("protein_name");//
+        var protname=get_active_protein_name();
         var residsel=$(".var_impact_selected_resid").html()
         if (protname && residsel){
             obtain_timedependent_data(protname,residsel);
@@ -2203,6 +2239,7 @@ $(document).ready( function () {
         $(".var_impact_selected_protname").text(protname);
         $(".var_impact_selected_none").css("display","none");
         $(".var_impact_selected").css("display","inline");
+        $("#var_impact_score_common_section").css("display","block");
 
     }
 
@@ -2220,8 +2257,9 @@ $(document).ready( function () {
 //
 //    }
 
-
-    $(".seq_sel.hasvariants").on("click", function(){
+    // new2
+    $("#seq_w_variants").on("click",".seq_sel.hasvariants.activeseqpos", function(){
+    // end new2
         var var_info=$(this).data("varinfo");
         var topd=$(this)[0].offsetTop - $("#seq_w_variants").scrollTop();
         var leftd=$(this)[0].offsetLeft + 25;
@@ -2266,18 +2304,137 @@ $(document).ready( function () {
 
     })
 
-    $("#select_isolate").on("change",function(){
-        var thisval=$(this).val();
-        if (thisval=="all"){
-             $(".seq_sel.hasvariants").addClass("activeseqpos");
-        } else {
-            $(".seq_sel.hasvariants").removeClass("activeseqpos");
-            $(".seq_sel.hasvariants."+thisval).addClass("activeseqpos");
+    function update_seq_varinfo(sel_var_data,is_allmuts){
+        $("#seq_w_variants").find(".seq_sel.hasvariants").each(function(){
+            var var_prot=$(this).data("protein_name");
+            var newvarinfo="";
+            if (var_prot in sel_var_data){
+                var var_pos=Number($(this).children(".seq_sel_pos_seqpos").text());
+                var prot_data=sel_var_data[var_prot];
+                if (var_pos in prot_data){
+                    if (is_allmuts){
+                        newvarinfo=prot_data[var_pos]["pos_variants"];
+                    } else {
+                        $(this).addClass("activeseqpos");
+                        newvarinfo=prot_data[var_pos]
+                    }
+                }
 
+            }
+            $(this).data("varinfo",newvarinfo)
+            //JSON.stringify
+        })
+
+    }
+
+    // new!
+
+
+
+    function update_isolate(thisval){
+        if (thisval=="ALL"){ // show all
+            update_seq_varinfo(finpseq_to_model,true);
+            $(".seq_sel.hasvariants").addClass("activeseqpos");
+            //var protein_name=$(".seq_sel.selected").data("protein_name");
+            var protein_name=get_active_protein_name();
+            color_html_seq(posColorMap,protein_name);
+        } else {
+            $("#loading_isolates").css("display","inline");
+            var muts_in_iso={}
+            $.ajax({
+                  type: "POST",
+                  url: "/covid19/ajax_muts_in_isolate/", 
+                  dataType: "json",
+                  data: { 
+                    "dyn_id": dyn_id,
+                    "isolate": thisval,
+                  },
+                success: function(out_data) {
+                    muts_in_iso=out_data.result;
+                    var some_mut_in_struc=out_data.some_mut_in_struc;
+                    if (! some_mut_in_struc){
+                        $("#no_muts_in_struc").css("display","block");
+                    }
+                },
+                error: function() {
+                    muts_in_iso={}
+                }, complete: function(){
+                    $(".seq_sel.hasvariants").removeClass("activeseqpos");
+                    update_seq_varinfo(muts_in_iso,false);
+                    //var protein_name=$(".seq_sel.selected").data("protein_name");
+                    var protein_name=get_active_protein_name();
+                    color_html_seq(posColorMap,protein_name);
+                    $("#loading_isolates").css("display","none");
+                },
+                timeout: 600000
+            });
+
+        } 
+    }
+
+
+
+    $( "#select_isolate" ).autocomplete({  
+        //source: "/covid19/"+dyn_id+"/",
+        source: function(request,response){
+                $("#loading_isolates").css("display","inline");
+                $.ajax({
+                    url: "/covid19/ajax_autocomp_isolates/",
+                    type:"GET",
+                    dataType:"json",
+                    data:{
+                        search: request.term,
+                        prots: included_prots.join(),
+                       // dyn_id: dyn_id
+
+                    },  
+                    success:function(data){
+                        response(data);
+                    },
+                    complete: function(){
+                        $("#loading_isolates").css("display","none");
+                    }
+                })
+        },
+        open: function(){
+            setTimeout(function () {
+                $('.ui-autocomplete').css('z-index', 99);
+            }, 0);
         }
-        var protein_name=$(".seq_sel.selected").data("protein_name");
-        color_html_seq(posColorMap,protein_name);
-    })
+    });  
+
+/*
+    $( "#select_isolate" ).autocomplete({  
+        source: "/covid19/"+dyn_id+"/",
+        open: function(){
+            setTimeout(function () {
+                $('.ui-autocomplete').css('z-index', 99);
+            }, 0);
+        }
+    });  */
+
+
+
+    $( "#select_isolate" ).on( "autocompletesearch", function( event, ui ) {
+        $(this).parent().removeClass("has-error");
+        $(this).parent().removeClass("has-success");
+    } );
+
+    $( "#select_isolate" ).on( "autocompletechange", function( event, ui ) {
+        var result=ui["item"];
+        $("#no_muts_in_struc").css("display","none");
+        if (result){
+            var result_val=result["value"]
+            $(this).parent().addClass("has-success");
+            $("#select_isolate_res").text(result_val)
+            update_isolate(result_val)
+
+        } else {
+            $(this).parent().addClass("has-error");
+        }
+    } );
+
+
 
     function control_var_impact_reps(selection,nglname, zoomtorep){
         var selection_cont="protein and ("+selection+")";
@@ -2663,6 +2820,7 @@ function Array_Sort_Numbers(inputarray){
 
     var impact_per_var_all=$("#var_impact_data_effect").data("impact_per_var");
     var finpseq_to_model=$(".finpseq_to_model").data("finpseq_to_model");
+
 
     function trigger_new_variant_sel(thisvarname,my_selector,parentpos_id){
         var selected_var_info_box= $("#selected_var");
@@ -3121,148 +3279,158 @@ function Array_Sort_Numbers(inputarray){
     }
 
 
+    function get_active_protein_name(){
+        var selected_pos=$(".seq_sel.selected");
+        if (selected_pos.length<=0){ //If there is no selected pos in the sequence, use the 1st protein (protien of the 1st seq pos)
+            selected_pos=$("#prot1_pos1");
+        }
+        var protein_name=selected_pos.data("protein_name");
+        return protein_name
+    }
 
     function create_plot_by_residue(selected_params,sum_nodep,sum_dep,sum_dep_li){
         var traj_id=Number($("#selectedTraj_id").text());
-        var protein_name=$(".seq_sel.selected").data("protein_name");
-        var impact_per_pos= impact_per_var_all[traj_id][protein_name];
+        var protein_name=get_active_protein_name()
+        if (impact_per_var_all){
+            var impact_per_pos= impact_per_var_all[traj_id][protein_name];
+            var value_perpos_indep={};
+            var value_perpos_dep={};
 
-        var value_perpos_indep={};
-        var value_perpos_dep={};
+            var value_pervar={};
 
-        var value_pervar={};
+            var any_time_dep_general=false;
+            for (finprot_pos in impact_per_pos){ //Loop over positions
+                impact_pos_values=impact_per_pos[Number(finprot_pos)]
 
-        var any_time_dep_general=false;
-        for (finprot_pos in impact_per_pos){ //Loop over positions
-            impact_pos_values=impact_per_pos[Number(finprot_pos)]
+                var pos_sum_indep=0;
+                var pos_sum_dep=0;
 
-            var pos_sum_indep=0;
-            var pos_sum_dep=0;
+                var any_data_in_pos=false;
+                var any_time_dep_inpos=false;
 
-            var any_data_in_pos=false;
-            var any_time_dep_inpos=false;
+                for (var i=0;i<selected_params.length;i++){ // Loop over parameters
+                    var param_info=selected_params[i];
+                    var param_name=param_info["analysis_type"];
+                    var param_weight=param_info["correction"];
 
-            for (var i=0;i<selected_params.length;i++){ // Loop over parameters
-                var param_info=selected_params[i];
-                var param_name=param_info["analysis_type"];
-                var param_weight=param_info["correction"];
-
-                var var_sum_indep=0;
-                var var_sum_dep=0;
-                var variant_withval_num=0;
-                for (varname in impact_pos_values["variants"]){ // Loop over variants
-                    if (!( varname in value_pervar)){
-                        value_pervar[varname]={
-                            "dep_sum":0,
-                            "indep_sum":0,
-                            "has_data":false
-                        };
-                    }
-                    if (param_info["is_time_dependent"]){
-                        any_time_dep_inpos=true;
-                        any_time_dep_general=true;
-                        if (param_name in impact_pos_values["time_dep"]){
-                            variant_withval_num+=1;
-                            var param_data_type=param_info["data_type"];
-                            var param_value=(impact_pos_values["time_dep"][param_name][param_data_type])*param_weight;
-                            var_sum_dep+=param_value;//for the measure per position (color map)
-                            value_pervar[varname]["dep_sum"]+=param_value; //for the measure per variant (histogram)
-                            value_pervar[varname]["has_data"]=true;//for the measure per variant (histogram)
+                    var var_sum_indep=0;
+                    var var_sum_dep=0;
+                    var variant_withval_num=0;
+                    for (varname in impact_pos_values["variants"]){ // Loop over variants
+                        if (!( varname in value_pervar)){
+                            value_pervar[varname]={
+                                "dep_sum":0,
+                                "indep_sum":0,
+                                "has_data":false
+                            };
                         }
-                    } else {
-                        var impact_var_values=impact_pos_values["variants"][varname];
-                        if (param_info["is_mutfunc"]){
-                            var param_name_sh=param_name.replace("variant_mutfunc_","");
-                            var param_value_pre=impact_var_values["mutfunc"][param_name_sh]
-                            if (param_name_sh=="ptm"){
-                                if (param_value_pre){
-                                    var param_value_pre=1;
-                                } else {
-                                    var param_value_pre=0;
-                                }
+                        if (param_info["is_time_dependent"]){
+                            any_time_dep_inpos=true;
+                            any_time_dep_general=true;
+                            if (param_name in impact_pos_values["time_dep"]){
+                                variant_withval_num+=1;
+                                var param_data_type=param_info["data_type"];
+                                var param_value=(impact_pos_values["time_dep"][param_name][param_data_type])*param_weight;
+                                var_sum_dep+=param_value;//for the measure per position (color map)
+                                value_pervar[varname]["dep_sum"]+=param_value; //for the measure per variant (histogram)
+                                value_pervar[varname]["has_data"]=true;//for the measure per variant (histogram)
                             }
-                        } else if (param_info["is_hydrophobicity"]){
-                            var param_value_pre=impact_var_values["hydrophobicity"][param_name];
                         } else {
-                            var param_value_pre=impact_var_values[param_name];
+                            var impact_var_values=impact_pos_values["variants"][varname];
+                            if (param_info["is_mutfunc"]){
+                                var param_name_sh=param_name.replace("variant_mutfunc_","");
+                                var param_value_pre=impact_var_values["mutfunc"][param_name_sh]
+                                if (param_name_sh=="ptm"){
+                                    if (param_value_pre){
+                                        var param_value_pre=1;
+                                    } else {
+                                        var param_value_pre=0;
+                                    }
+                                }
+                            } else if (param_info["is_hydrophobicity"]){
+                                var param_value_pre=impact_var_values["hydrophobicity"][param_name];
+                            } else {
+                                var param_value_pre=impact_var_values[param_name];
+                            }
+                            if ((typeof param_value_pre =="number") &&  (!isNaN(param_value_pre))){
+                                variant_withval_num+=1;
+                                var param_value=(param_value_pre)*param_weight;
+                                var_sum_indep+=param_value;//for the measure per position (color map)
+                                value_pervar[varname]["indep_sum"]+=param_value; //for the measure per variant (histogram)
+                                value_pervar[varname]["has_data"]=true;//for the measure per variant (histogram)
+                            }
                         }
-                        if ((typeof param_value_pre =="number") &&  (!isNaN(param_value_pre))){
-                            variant_withval_num+=1;
-                            var param_value=(param_value_pre)*param_weight;
-                            var_sum_indep+=param_value;//for the measure per position (color map)
-                            value_pervar[varname]["indep_sum"]+=param_value; //for the measure per variant (histogram)
-                            value_pervar[varname]["has_data"]=true;//for the measure per variant (histogram)
-                        }
+                    }//End loop per varant
+
+                    if (variant_withval_num>0){ //if for this parameter there is any variant with data
+                        any_data_in_pos=true;
+
+                        var_sum_indep=var_sum_indep/variant_withval_num;
+                        var_sum_dep=var_sum_dep/variant_withval_num;
+                        pos_sum_indep+=var_sum_indep;
+                        pos_sum_dep+=var_sum_dep;
+
                     }
-                }//End loop per varant
 
-                if (variant_withval_num>0){ //if for this parameter there is any variant with data
-                    any_data_in_pos=true;
+                }// End loop per parameter
 
-                    var_sum_indep=var_sum_indep/variant_withval_num;
-                    var_sum_dep=var_sum_dep/variant_withval_num;
-                    pos_sum_indep+=var_sum_indep;
-                    pos_sum_dep+=var_sum_dep;
-
-                }
-
-            }// End loop per parameter
-
-            if (any_data_in_pos){
-                if (any_time_dep_inpos){ //If some if the data is time-dependent
-                    pos_sum_dep+=pos_sum_indep;
-                } 
-                value_perpos_indep[finprot_pos]=pos_sum_indep;
-                value_perpos_dep[finprot_pos]=pos_sum_dep;
-               
-            }
-        }
-        var quartiles_traj_data=false;
-
-        if (sum_dep_li){
-            var alltrajvalues=[];
-            for (var i=0;i<sum_dep_li.length; i++){
-                if (i >0){//Skip title
-                    thisval=sum_dep_li[i][1];
-                    alltrajvalues[alltrajvalues.length]=thisval;
+                if (any_data_in_pos){
+                    if (any_time_dep_inpos){ //If some if the data is time-dependent
+                        pos_sum_dep+=pos_sum_indep;
+                    } 
+                    value_perpos_indep[finprot_pos]=pos_sum_indep;
+                    value_perpos_dep[finprot_pos]=pos_sum_dep;
+                   
                 }
             }
-            var quartilles_dev=[0,25,50,75,100];
-            quartiles_traj_data=[];
-            for (var i=0;i<quartilles_dev.length;i++){
-                var quantile_val=quantile(alltrajvalues, quartilles_dev[i]);
-                quartiles_traj_data[quartiles_traj_data.length]=quantile_val;
+            var quartiles_traj_data=false;
+
+            if (sum_dep_li){
+                var alltrajvalues=[];
+                for (var i=0;i<sum_dep_li.length; i++){
+                    if (i >0){//Skip title
+                        thisval=sum_dep_li[i][1];
+                        alltrajvalues[alltrajvalues.length]=thisval;
+                    }
+                }
+                var quartilles_dev=[0,25,50,75,100];
+                quartiles_traj_data=[];
+                for (var i=0;i<quartilles_dev.length;i++){
+                    var quantile_val=quantile(alltrajvalues, quartilles_dev[i]);
+                    quartiles_traj_data[quartiles_traj_data.length]=quantile_val;
+                }
+
             }
 
-        }
+    /*            if (any_time_dep_general){
+                    google.load("visualization", "1", {packages:["corechart"],'callback': function(){ drawQuartileChart("quartile_chart_dep_sd", value_perpos_dep_sd,sum_dep_sd) }});
+                    google.load("visualization", "1", {packages:["corechart"],'callback': function(){ drawQuartileChart("quartile_chart_dep_average", value_perpos_dep_average, sum_dep_average) }});
+                    var color_map_data=value_perpos_dep_average;
+                } else {
+                    google.load("visualization", "1", {packages:["corechart"],'callback': function(){ drawQuartileChart("quartile_chart_indep", value_perpos_indep,sum_nodep) }});
+                    var color_map_data=value_perpos_indep;
+                }
+    */
+            if (any_time_dep_general){
+                var color_map_data=value_perpos_dep;
+                var selected_var_score=sum_dep;
+                var is_time_dependent=true;
 
-/*            if (any_time_dep_general){
-                google.load("visualization", "1", {packages:["corechart"],'callback': function(){ drawQuartileChart("quartile_chart_dep_sd", value_perpos_dep_sd,sum_dep_sd) }});
-                google.load("visualization", "1", {packages:["corechart"],'callback': function(){ drawQuartileChart("quartile_chart_dep_average", value_perpos_dep_average, sum_dep_average) }});
-                var color_map_data=value_perpos_dep_average;
             } else {
-                google.load("visualization", "1", {packages:["corechart"],'callback': function(){ drawQuartileChart("quartile_chart_indep", value_perpos_indep,sum_nodep) }});
                 var color_map_data=value_perpos_indep;
-            }
-*/
-        if (any_time_dep_general){
-            var color_map_data=value_perpos_dep;
-            var selected_var_score=sum_dep;
-            var is_time_dependent=true;
+                var selected_var_score=sum_nodep;
+                var is_time_dependent=false;
 
-        } else {
-            var color_map_data=value_perpos_indep;
-            var selected_var_score=sum_nodep;
-            var is_time_dependent=false;
+            }
+            var value_pervar_li=formatPervarData(value_pervar);
+            
+            var p_score_pos=get_position_score_allvariants(value_pervar_li,selected_var_score);
+
+            google.load("visualization", "1", {packages:["corechart"],'callback': function(){ drawScoresPerVariantHisto("quartile_chart_common", value_pervar_li,selected_var_score,quartiles_traj_data,is_time_dependent,protein_name) }});
+
+            color_prot_by_score(color_map_data,protein_name)
 
         }
-        var value_pervar_li=formatPervarData(value_pervar);
-        
-        var p_score_pos=get_position_score_allvariants(value_pervar_li,selected_var_score);
-
-        google.load("visualization", "1", {packages:["corechart"],'callback': function(){ drawScoresPerVariantHisto("quartile_chart_common", value_pervar_li,selected_var_score,quartiles_traj_data,is_time_dependent,protein_name) }});
-
-        color_prot_by_score(color_map_data,protein_name)
 
     }
 
@@ -3308,15 +3476,30 @@ function Array_Sort_Numbers(inputarray){
         })
     }
 
+    
+    function load_predef_weights(param_weights){
+        if (!param_weights){
+            var active_defaut_weights=$(".imp_score_fitted_weights.active");
+            if (active_defaut_weights.length>0){
+                param_weights=active_defaut_weights.data("param_weights");
+                //apply_default_weights_all(param_weights);
+            }
+        }
+        if (param_weights){
+            apply_default_weights_all(param_weights);
+        }
+        obtain_impact_score();   
+    }
 
     $(".imp_score_fitted_weights").click(function(){
         var is_active=$(this).hasClass("active");
         if (!is_active){
-            var param_weights=$(this).data("param_weights");
             $(".imp_score_fitted_weights.active").removeClass("active");
             $(this).addClass("active");
-            apply_default_weights_all(param_weights);
-            obtain_impact_score();            
+            var param_weights=$(this).data("param_weights");
+            load_predef_weights(param_weights)
+            //apply_default_weights_all(param_weights);
+            //obtain_impact_score();            
         }
 
     })
@@ -3573,9 +3756,9 @@ function Array_Sort_Numbers(inputarray){
                             }
                         }
 
-                    } else {
+                    } /*else {
                         console.log(analysis_type)
-                    }
+                    }*/
 
                 } else {
                     active_params_me+=1;
@@ -3714,10 +3897,12 @@ function Array_Sort_Numbers(inputarray){
     $("#variant_dhydro_options").change(function(){ 
         //Update average and SD values from table
         var activevar=$(".seq_sel.hasvariants.selected");
-        var thisvarname= $(".selected_var_name").html();
-        var protname=activevar.data("protein_name");
-        var thisvarinfo=activevar.data("varinfo")[thisvarname];
-        update_mutation_effect(impact_per_var_all,thisvarinfo,protname);
+        if (activevar.length >0){
+            var thisvarname= $(".selected_var_name").html();
+            var protname=activevar.data("protein_name");
+            var thisvarinfo=activevar.data("varinfo")[thisvarname];
+            update_mutation_effect(impact_per_var_all,thisvarinfo,protname);            
+        }
         
         //If a predefined score is selected, update the slider val to that one
         var active_defaut_weights=$(".imp_score_fitted_weights.active");
@@ -3762,20 +3947,30 @@ function Array_Sort_Numbers(inputarray){
 
 
 //-------- Trigger NGL comp creation --------
-    function trigger_def_page_funcitons(){
+    trigger_def_page_funcitons=function(){
         var is_variantimpact_def=$("#analysis_variant_impact_opt").data("variantimpact_def");
+        var var_score_loaded=false;
         if (is_variantimpact_def){
             var firstvarpos=$(".activeseqpos:first");
             if (firstvarpos){
                 var pos_vars_d=firstvarpos.data("varinfo");
-                var thisvarname=getDictKeys(pos_vars_d).sort()[0];
-                var my_selector= pos_vars_d[thisvarname]["model_sel"];
-                var parentpos_id=firstvarpos.attr("id");
-                trigger_new_variant_sel(thisvarname,my_selector,parentpos_id)
+                if (pos_vars_d){
+                    var_score_loaded=true;
+                    var thisvarname=getDictKeys(pos_vars_d).sort()[0];
+                    var my_selector= pos_vars_d[thisvarname]["model_sel"];
+                    var parentpos_id=firstvarpos.attr("id");
+                    trigger_new_variant_sel(thisvarname,my_selector,parentpos_id)
+                }
             }
+        }
+        if (!var_score_loaded){ //when it's not example page, or example var didn't load correctly
+            //control_var_impact_reps(my_selector,"var_impact",false)
+            load_predef_weights(false);
         }
 
     }
+    window.trigger_def_page_funcitons=trigger_def_page_funcitons;
+    
 
 
     var isTriggered=true;
@@ -3789,15 +3984,15 @@ function Array_Sort_Numbers(inputarray){
         var cont_w_num=cont_w_max_num - 2;
         var cont_w = cont_w_num.toString() + "px";
         var cont_w_in= (cont_w_num - 2).toString() + "px";
-
+        
         if ($("#flare-container").length && $("#analysis_fplot").hasClass("in")){
             var cont_h_num_pre=setFpNglSize(false);
+//            var cont_h_num = cont_h_num_pre - 44;
             var cont_h_num = cont_h_num_pre - 8;
         } else {
             var screen_h=screen.height;
             var cont_h_num=Math.round(screen_h*0.40);
         }
-        
         var cont_h=(cont_h_num).toString() +"px";
         var cont_h_iframe_num=cont_h_num+30;
         var cont_h_iframe=(cont_h_iframe_num).toString() +"px";
@@ -3813,7 +4008,6 @@ function Array_Sort_Numbers(inputarray){
        // $("#loading").html("");
         $('#embed_mdsrv')[0].contentWindow.$('body').trigger('createNGL', [ cont_w , cont_w_in , cont_h_num ]);
 
-	trigger_def_page_funcitons()
     });
 
 } );

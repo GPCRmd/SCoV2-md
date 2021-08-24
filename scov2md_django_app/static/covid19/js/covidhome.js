@@ -194,7 +194,6 @@ $(document).ready(function(){
 
   function create_legend(colorvar){
     var mycolorscheme=colorschemes[colorvar];
-    
     if (colorvar=="date"){
       var date_list=colorschemes["date_list"];
       gradient_legend(date_list)
@@ -204,7 +203,7 @@ $(document).ready(function(){
     } else {
       //Compute length
       //Generate legend
-      if (colorvar=="age"){
+      if (colorvar=="age" || colorvar=="mutations"){
         max_len=100
         var new_colorscheme={};
         var new_data_keys=[];
@@ -232,9 +231,6 @@ $(document).ready(function(){
         
         mycolorscheme=new_colorscheme;
         data_keys=new_data_keys
-      } else if (colorvar=="has_mutations"){
-        var data_keys=["Mutated"];
-        mycolorscheme={"Mutated":"#ff6666"};
       } else {
 
         var data_keys=[]
@@ -270,7 +266,7 @@ $(document).ready(function(){
           .on("mouseover",function(d){
             var datatype= this.dataset.datatype;
             var dataval= this.__data__;
-            if (datatype=="age"){
+            if (datatype=="age"|| colorvar=="mutations"){
               datavalsp=dataval.split(" - ")
               highlightNodesByDataInterval(datatype,Number(datavalsp[0]),Number(datavalsp[ 1]),root)
             } else {
@@ -361,7 +357,6 @@ $(document).ready(function(){
     function showsubtree(d){
       if (d.children){
         svg.selectAll("*").remove();
-        //console.log(data)
         mysubtree=obtainb_subtree(data,d.data.id,false)
         create_tree(mysubtree)
         $("#showWholeTree").css("display","inline")
@@ -374,7 +369,11 @@ $(document).ready(function(){
         $("#showWholeTree").css("display","none")
     })
 
-    
+    function sort_by_variant_pos(a,b){
+        aN=Number(a.slice(1,a.length-1))
+        bN=Number(b.slice(1,b.length-1))
+        return aN - bN
+    }
 
     function displayFixedNodeData(d){
         var data_html=""
@@ -419,31 +418,26 @@ $(document).ready(function(){
 
         }
         //Mutated proteins table
-        var isolateid=d.data["gisaid_epi_isl"];
-        var genome_mut_prot={}
         var mutations_html_sect=""
         var coln="12";
-        if (isolateid in mygenome_muts){
-          genome_mut_prot=mygenome_muts[isolateid]
+        var isolateid=d.data["gisaid_epi_isl"];
+        var genome_mut_prot={}
+        if ("mutation_data" in d.data){
+          genome_mut_prot=d.data["mutation_data"];
           var mutations_html=""
           for (protName in genome_mut_prot){
-            var mutli=genome_mut_prot[protName]["mutations"];
-            var mutli_s=mutli.join(", ");
+            var mutli=genome_mut_prot[protName];
+            var mutli_s=mutli.sort(sort_by_variant_pos).join(", ");
             var mut_prot_avail=false;
             var simulation_avail=false;
             if (simulated_prots.indexOf(protName)> -1){
               simulation_avail=true;
             }
-            var mut_fasta_avail=false;
-            var mut_seq=genome_mut_prot[protName]["sequence"];
-            if (mut_seq){
-              mut_fasta_avail=true;
-            }
             var extrainfo_btn_html="";
-            if (mut_prot_avail || simulation_avail || mut_fasta_avail){
-              extrainfo_btn_html="<span class='glyphicon glyphicon-plus-sign more_info_mutated_prot' style='padding-left:10px;font-size:12px' data-prot='"+protName+"' data-isolateid='"+isolateid+"'></span>\
-                                  <span class='pannel_mutated_prot'></span>";
-            }
+            //if (mut_prot_avail || simulation_avail){
+            extrainfo_btn_html="<span class='glyphicon glyphicon-plus-sign more_info_mutated_prot' style='padding-left:10px;font-size:12px' data-prot='"+protName+"' data-isolateid='"+isolateid+"'></span>\
+                                <span class='pannel_mutated_prot'></span>";
+          
             mutations_html+="<div class='additional_info_muts'>\
                               <p style='font-weight:bold'>\
                                     "+protName+"\
@@ -511,20 +505,17 @@ $(document).ready(function(){
           prot_link="/covid19/prot/"+myprot+"/"+isolateid;
           btn_open_wb_html="<p><a href='"+prot_link+"' class='btn btn-default btn-xs' role='button'>See simulations</a></p>";
         } 
-        var btn_download_fasta="";
-        if (isolateid in mygenome_muts){
-          var genome_mut_prot=mygenome_muts[isolateid];
-          if (myprot in genome_mut_prot){
-            var mut_seq=genome_mut_prot[myprot]["sequence"];
-            if (mut_seq){
-              btn_download_fasta="<p><a href='/covid19/dwl/fasta/"+isolateid+"/"+myprot+"' class='btn btn-default btn-xs' role='button' >Download fasta</a></p>";
-            }
-          }
+        var btn_download_fasta="<p><a href='/covid19/dwl/fasta/"+isolateid+"/"+myprot+"' class='btn btn-default btn-xs' role='button' >Download fasta</a></p>";
+
+        var btn_download_structure="";
+        var include_btn_download_structure=false;// [!] to do
+        if (include_btn_download_structure){
+          btn_download_structure="<p><button type='button' class='btn btn-default btn-xs disabled'>Download variant protein</button></p>";
         }
         pannel_html="<div class='pannel_mutated_prot_popup' style='position:absolute;top:"+mytop+"px;left:"+myleft+"px;'>\
                             "+btn_open_wb_html+"\
                             "+btn_download_fasta+"\
-                            <p><button type='button' class='btn btn-default btn-xs disabled'>Download variant protein</button></p>\
+                            "+btn_download_structure+"\
                         </div>";
 
         pannel_sect.html(pannel_html)
@@ -619,18 +610,8 @@ $(document).ready(function(){
         }
 
 
-
         //Mutated proteins table
-        var isolateid=d.data["gisaid_epi_isl"];
-        var mut_n=0;
-        if (isolateid in mygenome_muts){
-          genome_mut_prot=mygenome_muts[isolateid];
-          for (protName in genome_mut_prot){
-            var mutli=genome_mut_prot[protName]["mutations"];
-            mut_n=mut_n+mutli.length;
-          }
-        }
-
+        var mut_n=d.data.mutations;
         mypopup_hover.append("text")
           .attr("y", y_sep*y_val)
           .attr("font-weight", 600)
@@ -663,7 +644,6 @@ $(document).ready(function(){
         if (max_pos===false || thispos>max_pos){
           max_pos=thispos;
         }
-        //console.log(n.data)
         var strdate=n.data.date;
         dateobj=datestr_to_obj(strdate)
         if (min_date){
@@ -721,7 +701,6 @@ $(document).ready(function(){
               $("#loading").css({"display":"none"})
               $(".hiddenwhenload").css({"display":"inline"})
               data=out_data.tree_data;
-              mygenome_muts=out_data.genome_mutations;
               simulated_prots=out_data.simulated_prots;
               create_tree(data)
           },
@@ -758,7 +737,6 @@ $(document).ready(function(){
 
 
     data=$("#chart").data("tree_data")
-    mygenome_muts=$("#chart").data("genome_mutations")
     simulated_prots=$("#chart").data("simulated_prots");
     obtain_tree_data()
 
@@ -959,6 +937,23 @@ $(document).ready(function(){
         .style("display", "inline")
   })
 
+  function get_range(start,end){    
+      var step=1;
+      var range=[];
+      while ( end > start ) {
+          range.push(start);
+          start += step;
+      }
+      return range
+  }
+
+  function range_srt_to_li(range_str){
+    var sp_res=range_str.split(" - ");
+    var start=Number(sp_res[0]);
+    var end=Number(sp_res[1]);
+    return get_range(start,end+1)
+  }
+
   function get_phyl_filters(){
     var sel_classified={};
     var sp_sel=$("#phyltree_filter").val();
@@ -972,7 +967,15 @@ $(document).ready(function(){
           sel_classified[opt_group]=[];
         }
         var groupli=sel_classified[opt_group];
-        groupli[groupli.length]=opt_val;
+        if (opt_group == "age" || opt_group == "mutations"){
+          opt_val_li=range_srt_to_li(opt_val);
+          for (var oi=0;oi<opt_val_li.length;oi++){
+            groupli[groupli.length]=opt_val_li[oi];
+          }
+        } else {
+          groupli[groupli.length]=opt_val;
+
+        }
       }
     }
     return sel_classified
@@ -1020,7 +1023,6 @@ $(document).ready(function(){
           svg.selectAll(".node_circle")
             .style("fill", function(d){
               var myval=d.data[colorvar]
-              //console.log(myval)
               if (myval in myschemedict){
                 return myschemedict[myval]
               } else {
@@ -1029,27 +1031,8 @@ $(document).ready(function(){
             })
             .attr("stroke", function(d){
               var myval=d.data[colorvar]
-              //console.log(myval)
               if (myval in myschemedict){
                 return LightenDarkenColor(myschemedict[myval],-40)
-              } else {
-                return "#999999"
-              }
-            })  
-        } else if (colorvar=="has_mutations"){
-          svg.selectAll(".node_circle")
-            .style("fill", function(d){
-              var isolateid=d.data["gisaid_epi_isl"];
-              if (isolateid in mygenome_muts){
-                return "#ff6666"
-              } else {
-                return "#ffffff"
-              }
-            })
-            .attr("stroke", function(d){
-              var isolateid=d.data["gisaid_epi_isl"];
-              if (isolateid in mygenome_muts){
-                return "#d73e3e"
               } else {
                 return "#999999"
               }
