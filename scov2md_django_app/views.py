@@ -916,8 +916,10 @@ def dynanalysis(request,dyn_id,sel_genome_id=None,variantimpact_def=False):
     finpseq_to_model={}
     finp_sel={}
     for m in model_pos_obj:
-        up_pos=m.id_uniprotpos.seqpos
-        model_details={"seqpos":m.seqpos,"aa":m.aa,"chain":m.chainid}
+        up_pos_obj=m.id_uniprotpos
+        up_pos=up_pos_obj.seqpos
+        up_aa=up_pos_obj.aa
+        model_details={"seqpos":m.seqpos,"aa":m.aa,"chain":m.chainid,"aa_uniprot":up_aa}
         upseq_to_model[up_pos]=model_details
         pos_in_covid_finprot=False
         for interval,protname in seq_intervals_finalprot.items():
@@ -1060,13 +1062,14 @@ def dynanalysis(request,dyn_id,sel_genome_id=None,variantimpact_def=False):
             muts_in_model=True
             prot_name=found_mut["prot_name"]
             resid_fp=thismut_d["resid_finprot"]
+            resid_up=thismut_d["resid_up"]
             thisres_data=finpseq_to_model[prot_name][resid_fp]
             if "pos_variants" not in thisres_data:
                 thisres_data["pos_variants"]={}
             mut_name=thismut_d["mut_name"]
             if mut_name not in thisres_data["pos_variants"]:
                 thisres_data["pos_variants"][mut_name]=thismut_d
-                wt_aa=thismut_d["resletter_from"]
+                wt_aa=upseq_to_model[resid_up]["aa_uniprot"]
                 pdb_aa=thisres_data["aa"]
                 if wt_aa != pdb_aa:
                     thisres_data["wt_aa"]=wt_aa
