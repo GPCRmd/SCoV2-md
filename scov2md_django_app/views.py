@@ -1668,7 +1668,7 @@ def obtain_finpseq_to_model(dyn_id):
 def download_custom_descriptors_template(request,dyn_id):
     finpseq_to_model= obtain_finpseq_to_model(dyn_id)
     response = HttpResponse(content_type='text/csv')        
-    response['Content-Disposition'] = 'attachment; filename="custom_descriptors.csv"'
+    response['Content-Disposition'] = 'attachment; filename="user_descriptors.csv"'
     
     writer = csv.writer(response)
     writer.writerow(["#Add one or more metrics with a numeric value for each residue."])

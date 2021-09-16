@@ -3510,7 +3510,7 @@ function Array_Sort_Numbers(inputarray){
         var table_head='<table class="table imp_score_me_table">\
                   <thead>\
                     <tr style="background-color:#f3f3f3">\
-                      <th class="table_title" colspan="3">Custom descriptors</th>\
+                      <th class="table_title" colspan="3">User-provided descriptors</th>\
                     </tr>\
                   </thead>\
                   <tbody>';
