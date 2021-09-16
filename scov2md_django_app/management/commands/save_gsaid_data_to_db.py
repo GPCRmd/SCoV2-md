@@ -155,6 +155,8 @@ class Command(BaseCommand):
                 if nsnum:
                     alt_name=genename
                     genename="ORF" + nsnum.group(1)
+                    if genename=="ORF3":
+                        genename="ORF3a"
 
                 finalprotobj, created_finalprotobj=CovidFinalProtein.objects.get_or_create(name=genename)
 

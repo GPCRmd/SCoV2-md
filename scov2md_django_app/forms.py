@@ -6,6 +6,17 @@ import requests
 from covid19.models import CovidModel
 import json
 
+class UploadDescriptorsForm(forms.Form):
+    csv_file = forms.FileField(label="CSV file" , widget=forms.FileInput(attrs={'class':'form-control-file'}))
+ 
+#    def clean_csv_file(self):
+#        file_data=self.cleaned_data['csv_file']
+#        if file_data:
+#            if file_data._size > max_upload_size:
+#                raise ValidationError(('Please keep filesize under %s. Current filesize %s') % (filesizeformat(max_upload_size), filesizeformat(file_data._size)))
+
+
+
 class UploadFileForm(forms.Form):
     MODEL_SOURCE = CovidModel.MODEL_SOURCE
     #Protein

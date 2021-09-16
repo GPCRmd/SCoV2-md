@@ -84,7 +84,9 @@
                             <p><b>Submitted by</b>: {{dyndata.submitted_by}}</p>
                         {% endif %}
                     {% endif %}
-
+                    {% if dyndata.submission_date %}
+                        <p><b>Submission date</b>: {{dyndata.submission_date}}
+                    {% endif %}
                 </div>
         </div>
         <div class="col-md-4 ">
@@ -109,6 +111,13 @@
                             </div>
                     {% else %}
                         <p style="margin-bottom:5px"><b>Membrane composition</b>: None</p>
+                    {% endif %}
+                    {% if dyndata.solvent_type %}
+                        <p style="margin-bottom:5px"><b>Solvent type</b>: {{dyndata.solvent_type}}
+                            {% if dyndata.solvent_type != "Implicit" and dyndata.solvent_type != "None" and dyndata.solvent_is_filtered %}
+                                (water was filtered out of the simulation output)
+                            {% endif %}
+                        </p>
                     {% endif %}
                 {% if dyndata.atom_num %}
                     <p><b>Total number of atoms</b>: {{dyndata.atom_num}}</p>
@@ -138,7 +147,7 @@
                     <p><b>Replicates</b>: {{dyndata.replicates}}</p>
                 {%endif%}
                 {%if dyndata.accum_time %}
-                    <p><b>Accumulated simulation time</b>: {{dyndata.accum_time}} <span>&#181;</span>s</p>
+                    <p><b>Accumulated simulation time</b>: {{dyndata.accum_time|floatformat:4}} <span>&#181;</span>s</p>
                 {%endif%}
 
                 
@@ -177,13 +186,22 @@
         </div> <!--end right col div-->
     </div> <!-- end row-->
 
-{% if dyndata.citation  %}
+{% if dyndata.citation or dyndata.doi %}
 <hr style="margin:40px 0">
 
     <div class="techinfo">
         <p class="techinfo_title" style="text-align:center">References</p>
         <div class="techinfo_content" >
-            <p>{{dyndata.citation}}</p>
+            <p>
+            {% if dyndata.citation %}
+                {% autoescape off %}
+                    {{dyndata.citation}}
+                {% endautoescape %}
+            {% endif %}
+            {% if dyndata.doi %}
+                DOI: <a href="http://doi.org/{{dyndata.doi}}">{{dyndata.doi}}</a>
+            {% endif %}
+            </p>
 <!--            {%for reference in answer.references%}
             <p>{{reference.authors}}. {{reference.pub_year}}. <span style="font-weight:bold;">{{reference.title}}</span>. {{reference.journal}}{% if reference.volume %} {{reference.volume}}{%endif%}{% if reference.issue %} ({{reference.issue}}){%endif%}. doi: {{reference.doi}}.                    
                 {%if reference.url%}

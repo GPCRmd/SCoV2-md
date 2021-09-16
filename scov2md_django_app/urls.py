@@ -33,6 +33,8 @@ urlpatterns = [
     url(r'^dwl/variantimpact/(?P<dyn_id>[0-9]+)/(?P<traj_id>[0-9]+)/(?P<position>[0-9]+)/(?P<analysis>\w+)/$', views.download_varimpact, name='download_varimpact'),
     url(r'^dwl/variantscores_traj/(?P<dyn_id>[0-9]+)/(?P<traj_id>[0-9]+)/(?P<protein>\w+)/(?P<position>[0-9]+)/(?P<variant>\w[0-9]+\w)/(?P<parameters_me>[\w_,]+)/(?P<parameters_td>[\w_,]+)/$', views.download_varscores_traj, name='download_varscores_traj'),
     url(r'^dwl/variantscores_all/(?P<dyn_id>[0-9]+)/$', views.download_variantscores_all, name='download_variantscores_all'),
+    url(r'^dwl/cdescr_template/(?P<dyn_id>[0-9]+)/$', views.download_custom_descriptors_template, name="download_custom_descriptors_template"),
+    url(r'^upload_descriptors/(?P<dyn_id>[0-9]+)/$', views.upload_descriptors, name="upload_descriptors"),
 #    url(r'^(?P<dyn_id>[0-9]+)/$', views.index, name='index'),
 ]
 

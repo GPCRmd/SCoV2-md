@@ -64,6 +64,7 @@ class CovidDynamicsComponents(models.Model):
     is_ligand= models.BooleanField(default=False)
     is_membrane= models.BooleanField(default=False)
     ligand_type = models.SmallIntegerField( choices=LIGAND_TYPE, default=0)
+    is_solvent = models.BooleanField(default=False)
 
     class Meta:
         managed = True
@@ -110,6 +111,7 @@ class CovidDynamics(models.Model):
     author_last_name=models.CharField(max_length=200,blank=True, null=True)
     author_institution=models.CharField(max_length=200,blank=True, null=True)
     citation = models.CharField(max_length=1000, blank=True, null=True)
+    doi = models.CharField("DOI", help_text="Digital object identifier.",  max_length=80, blank=True, null=True)
     dyn_name=models.CharField(max_length=200)
     id_model = models.ForeignKey('CovidModel', models.DO_NOTHING, blank=True, null=True)
     is_published= models.BooleanField(default=False)
@@ -125,6 +127,20 @@ class CovidDynamics(models.Model):
     description = models.CharField(max_length=2000, blank=True, null=True)
     extracted_from_db=models.CharField(max_length=200,blank=True, null=True)
     extracted_from_db_entry=models.CharField(max_length=200,blank=True, null=True)
+
+    solvent_types=(
+        (0,'Unknown'),#Not shown in report
+        (1,'Implicit'),
+        (2,'None'),#Shown in report as 'None'
+        (3,'Other'),
+        (4,'TIP3P'),
+        (5,'TIP4P'),
+        (6,'TIPS'),
+        (7,'SPC'),
+        (8,'OPC'),
+    )
+    solvent_type = models.SmallIntegerField( choices=solvent_types, default=0)
+    solvent_is_filtered= models.BooleanField(default=False)
 
     class Meta:
         db_table = 'covid_dynamics'

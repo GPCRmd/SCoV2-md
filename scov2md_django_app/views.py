@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse,JsonResponse
 from django.db.models import CharField,TextField as V, F
 from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth.decorators import login_required
@@ -26,7 +26,7 @@ import pickle
 import pandas as pd
 import statistics
 import datetime
-
+import numbers
 
 
 
@@ -237,6 +237,9 @@ def load_mutfunc_mutationeffect_data(mutfunc_o):
     return mutfunc_data
 
 
+
+
+
 def get_variant_impact_parameters():
     mutant_effect_params=[
         (
@@ -404,6 +407,17 @@ def get_variant_impact_parameters():
 
     return mutant_effect_params,time_dep_params
 
+def count_available_descriptors(descript_obj,description_type):
+    if description_type=="mutant_effect":
+        me_c=0
+        for section,opt_li in descript_obj:
+            for opt in opt_li:
+                if opt["include_in_score"]:
+                    me_c+=1
+    else:
+        me_c=len(descript_obj)*2
+    return me_c
+
 def param_long_to_short(param_long):
     param_long_to_short_d={
          'BLOSUM90' : 'blosum90',
@@ -528,7 +542,7 @@ def extract_report_data(dyn_id):
     mydyn=mydyn.annotate(ligand_type=F('coviddynamicscomponents__ligand_type'))
     
 
-    mydynvalues=mydyn.values("file_id", "file_type", "file_url", "framenum", "uniprotkbac", "uniprot_entry", "species", "pdbid", "model_source", "finalprot", "is_ligand", "is_membrane", "molecule_name", "ligand_type", "author_first_name", "author_last_name", "author_institution","citation","dyn_name","delta", "timestep", "atom_num", "software", "sversion", "ff", "ffversion", "description", "extracted_from_db" , "extracted_from_db_entry")
+    mydynvalues=mydyn.values("file_id", "file_type", "file_url", "framenum", "uniprotkbac", "uniprot_entry", "species", "pdbid", "model_source", "finalprot", "is_ligand", "is_membrane", "molecule_name", "ligand_type", "author_first_name", "author_last_name", "author_institution","citation","doi","dyn_name","delta", "timestep", "atom_num", "software", "sversion", "ff", "ffversion", "description", "extracted_from_db" , "extracted_from_db_entry","solvent_type","solvent_is_filtered","creation_timestamp")
     dyndata={}
     filetypes_dict={
          0: 'Model',
@@ -587,6 +601,7 @@ def extract_report_data(dyn_id):
         dyndata["author_last_name"]=dbdata["author_last_name"]
         dyndata["author_institution"]=dbdata["author_institution"]
         dyndata["citation"]=dbdata["citation"]
+        dyndata["doi"]=dbdata["doi"]
         dyndata["dyn_name"]=dbdata["dyn_name"]
         dyndata["delta"]=dbdata["delta"]
         dyndata["timestep"]=dbdata["timestep"]
@@ -598,7 +613,14 @@ def extract_report_data(dyn_id):
         dyndata["description"]=dbdata["description"]
         dyndata["extracted_from_db"]=dbdata["extracted_from_db"]
         dyndata["extracted_from_db_entry"]=dbdata["extracted_from_db_entry"]
-        
+        solvent_types_d={sid:val for sid,val in CovidDynamics.solvent_types}
+        solvent_type=solvent_types_d[dbdata["solvent_type"]]
+        dyndata["solvent_type"]= a=solvent_type if solvent_type!="Unknown" else None
+        dyndata["solvent_is_filtered"]=dbdata["solvent_is_filtered"]        
+        creation_time_obj=dbdata["creation_timestamp"]
+        if creation_time_obj:
+            dyndata["submission_date"]=creation_time_obj.strftime("%B %d, %Y")
+
     if dyndata["delta"]:
         if dyndata["framenum"]:
             dyndata["accum_time"]=(dyndata["framenum"] * dyndata["delta"])/1000
@@ -1138,6 +1160,8 @@ def dynanalysis(request,dyn_id,sel_genome_id=None,variantimpact_def=False):
 
     context["mutant_effect_params"]=mutant_effect_params
     context["time_dep_params"]=time_dep_params
+    context["count_mutant_effect_params"]=count_available_descriptors(mutant_effect_params,"mutant_effect")
+    context["count_time_dep_params"]=count_available_descriptors(time_dep_params,"time_dep")
 
     #variant impact weights
     has_spike="Spike" in included_prots
@@ -1614,6 +1638,155 @@ def download_variantscores_all(request,dyn_id):
 
     return response
 
+
+
+def obtain_finpseq_to_model(dyn_id):
+    modelfileobj=CovidFiles.objects.get(covidfilesdynamics__id_dynamics=dyn_id,covidfilesdynamics__type=0)
+    model_pos_obj=CovidModelSeqPositions.objects.select_related("id_uniprotpos").filter(id_file=modelfileobj)
+
+    d=CovidDynamics.objects.get(id=dyn_id)
+    included_prots={e.name for e in d.id_model.final_proteins.all()}
+    prot_to_finalprot_obj=CovidProteinFinalprotein.objects.annotate(prot_name=F("id_finalprotein__name")).filter(prot_name__in=included_prots,id_protein__in=d.id_model.proteins.all())
+    prot_to_finalprot_obj_val=prot_to_finalprot_obj.values("finalprot_seq_start","finalprot_seq_end","prot_name")
+    prot_to_finalprot={e["prot_name"]:e for e in prot_to_finalprot_obj_val}
+    seq_intervals_finalprot={(e["finalprot_seq_start"],e["finalprot_seq_end"]):e["prot_name"] for e in prot_to_finalprot_obj_val}
+
+
+    finpseq_to_model={}
+    for m in model_pos_obj:
+        up_pos_obj=m.id_uniprotpos
+        up_pos=up_pos_obj.seqpos
+        model_details="%s:%s"%(m.seqpos,m.chainid)
+        for interval,protname in seq_intervals_finalprot.items():
+            if up_pos >=interval[0] and up_pos <=interval[1]:
+                if protname not in finpseq_to_model:
+                    finpseq_to_model[protname]={}
+                fp_pos=(up_pos - interval[0]) +1
+                finpseq_to_model[protname][fp_pos]=model_details
+    return finpseq_to_model
+
+def download_custom_descriptors_template(request,dyn_id):
+    finpseq_to_model= obtain_finpseq_to_model(dyn_id)
+    response = HttpResponse(content_type='text/csv')        
+    response['Content-Disposition'] = 'attachment; filename="custom_descriptors.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(["#Add one or more metrics with a numeric value for each residue."])
+    writer.writerow(["#This should be uploaded as comma separated values (csv)."])
+    writer.writerow(["Protein","Seq. pos.","PDB resID","metric 1","...","metric n"])
+    for prot, prot_pos_d in finpseq_to_model.items():
+        for seq,pdb in sorted(prot_pos_d.items(),key=lambda x:x[0]):
+            writer.writerow([prot,seq,pdb])
+    return response
+
+
+def obtain_impact_per_variant_all(dyn_id):
+    traj_id_li=[e.id for e in CovidFiles.objects.filter(covidfilesdynamics__id_dynamics=dyn_id,covidfilesdynamics__type=2)]
+
+    impact_per_variant_path_pre="/protwis/sites/files/Precomputed/covid19/variant_impact/summary"
+    impact_per_variant_all={}
+    for traj_id in traj_id_li:
+        impact_per_variant_path=os.path.join(impact_per_variant_path_pre,"dyn_%s_traj_%s.data"%(dyn_id,traj_id))
+
+        if os.path.isfile(impact_per_variant_path):
+            with open(impact_per_variant_path,"rb") as fh:
+                impact_per_variant_traj=pickle.load(fh)
+
+            impact_per_variant_all[traj_id]=impact_per_variant_traj
+
+    if impact_per_variant_all:
+
+        # Mutfunc data
+        #Extract from DB
+        included_prots= {e.name for e in CovidFinalProtein.objects.filter(covidmodel__coviddynamics=dyn_id)}
+
+        mutfunc_o=CovidMutfuncData.objects.filter(id_final_protein__name__in=included_prots)
+        mutfunc_data=load_mutfunc_mutationeffect_data(mutfunc_o)
+        #merge  mutfunc_data with our data on parameters per position
+        for traj_id,mut_impact_data in impact_per_variant_all.items():
+            for finprot,protdata in mut_impact_data.items():
+                for protpos,posdata in protdata.items():
+                    posvars=posdata["variants"]
+                    for varname, vardict in posvars.items():
+                        try:
+                            vardict["mutfunc"]=mutfunc_data[finprot][protpos][varname]
+                        except KeyError:
+                            pass
+    return impact_per_variant_all
+
+def parse_str_to_html(mystr):
+    mystr=mystr.replace(" ","_")
+    mystr=mystr.replace(".","")
+    mystr=mystr.replace(":","")
+    mystr=mystr.replace(",","")
+    if len(mystr)==0:
+        mystr="x"
+    return mystr
+
+
+@csrf_protect
+def upload_descriptors(request,dyn_id):
+
+    context={}
+    context["dyn_id"]=dyn_id
+    if request.method == 'POST':
+        form = UploadDescriptorsForm(request.POST, request.FILES)
+        if form.is_valid():
+            #pdb_id=form.cleaned_data['pdb_id']
+            print(dyn_id)
+            csv_file=request.FILES['csv_file']
+            #print(csv_file.read())
+            try:
+                df = pd.read_csv(csv_file, delimiter = ',',comment='#')
+            except Exception:
+                return HttpResponse("Invalid form",status=422,reason='Invalid input format',content_type='text/plain; charset=UTF-8')
+            if len(df.columns)>23:
+                return HttpResponse("Invalid form",status=422,reason='Too many metrics defined, the maximum is 20.',content_type='text/plain; charset=UTF-8')
+            elif len(df.columns)==1:
+                return HttpResponse("Invalid form",status=422,reason='Columns not detected',content_type='text/plain; charset=UTF-8')
+            for colname in df.columns:
+                if not re.search("^[A-Za-z]", colname):
+                    return HttpResponse("Invalid form",status=422,reason='Metric names must start with a letter.',content_type='text/plain; charset=UTF-8')
+                if not re.search("^[\w\s\-\.\:\,]+$", colname):
+                    return HttpResponse("Invalid form",status=422,reason='Invalid character in metric names.',content_type='text/plain; charset=UTF-8')
+            df = df.dropna(axis=1, how='all')
+            if len(df.columns)<=3:
+                return HttpResponse("Invalid form",status=422,reason='No valid metrics found.',content_type='text/plain; charset=UTF-8')
+            if len(df.columns)!=len(set(df.columns)):
+                return HttpResponse("Invalid form",status=422,reason='Metric names cannot be repeated.',content_type='text/plain; charset=UTF-8')
+            try:
+                impact_per_variant_all=obtain_impact_per_variant_all(dyn_id)
+                taken_column_names=set()
+                for i,protpos in df.iterrows():
+                    for traj_id,impact_per_variant_traj in impact_per_variant_all.items():
+                        try:
+                            impact_per_variant_pos=impact_per_variant_traj[protpos["Protein"]][protpos["Seq. pos."]]["variants"]
+                        except KeyError:
+                            continue
+                        for var, impact_per_variant in impact_per_variant_pos.items():
+                            for metricname in protpos.index.tolist()[3:]:
+                                protposval=protpos[metricname]
+                                if math.isnan(protposval):
+                                    protposval=None
+                                elif not isinstance( protposval, numbers.Number):
+                                    protposval=None
+                                metricname_ok=parse_str_to_html(metricname)
+                                taken_column_names.add(metricname_ok)
+                                impact_per_variant[metricname_ok]=protposval
+            except Exception as e:
+                print(e)
+                return HttpResponse("Invalid form",status=422,reason='Server error',content_type='text/plain; charset=UTF-8')
+            data={}
+            data["impact_per_var"]=impact_per_variant_all
+            data["added_metrics"]=list(taken_column_names)
+            response = JsonResponse(data)
+            return response
+
+        return HttpResponse("Invalid form",status=422,reason='Invalid input',content_type='text/plain; charset=UTF-8')
+    else:
+        form = UploadDescriptorsForm()
+    context["form"]=form
+    return render(request, 'covid19/upload_descriptor.html', context)
 
 
 

@@ -2485,7 +2485,7 @@ $(document).ready( function () {
     }
 
     function update_impact_param_val(myselector,param_res,isnull){
-        var param_cont=$(myselector)
+        var param_cont=$("body").find(myselector)
         if (isnull){
             param_cont.html("-");
             param_cont.data("res_value",false);
@@ -2518,7 +2518,7 @@ $(document).ready( function () {
     function update_mutation_effect(impact_per_var_all,thisvarinfo,protname){
         var thisvarname=thisvarinfo["mut_name"];
         var resid_finprot=thisvarinfo["resid_finprot"];
-        $(".var_impact_score_slider_mutimpact").removeAttr("disabled");
+        $("#analysis_variant_impact").find(".var_impact_score_slider_mutimpact").removeAttr("disabled");
         var missing_var_data=false;
         if (impact_per_var_all){
             var traj_id=Number($("#selectedTraj_id").text());
@@ -2637,8 +2637,8 @@ $(document).ready( function () {
             missing_var_data=true;
         }
         if (missing_var_data){
-            update_impact_param_val(".mut_effect_res",false,true);
-            $(".var_impact_score_slider_mutimpact").each(function(){
+            update_impact_param_val(".mut_effect_res_data",false,true);
+            $("#analysis_variant_impact").find(".var_impact_score_slider_mutimpact").each(function(){
                 var slider_el=$(this);
                 disable_slider(slider_el);
             })
@@ -3470,7 +3470,7 @@ function Array_Sort_Numbers(inputarray){
     }
 
     function apply_default_weights_all(param_weights){
-        $(".var_impact_score_slider").each(function(){
+        $("#analysis_variant_impact").find(".var_impact_score_slider").each(function(){
             var this_slider=$(this);
             apply_default_weights_particular(param_weights,this_slider);
         })
@@ -3504,6 +3504,51 @@ function Array_Sort_Numbers(inputarray){
 
     })
 
+
+    added_custom_descr= function(new_impact_per_var_all,added_metrics){
+        $("#custom_metrics_tbl").html("");
+        var table_head='<table class="table imp_score_me_table">\
+                  <thead>\
+                    <tr style="background-color:#f3f3f3">\
+                      <th class="table_title" colspan="3">Custom descriptors</th>\
+                    </tr>\
+                  </thead>\
+                  <tbody>';
+
+        var table_bottom='</tbody>\
+                        </table>\
+            <button class="btn btn-link var_impact_score_clear" style="color:#DC143C;" data-target_ref=".var_impact_score_slider_mutimpact_custom">Clear selection</button>';
+        var middle_html="";
+        for (cn=0;cn<added_metrics.length;cn++){
+            var new_cmetric=added_metrics[cn];
+            add_html='<tr>\
+                    <td class="col-md-3" >\
+                        <div class="slider_div">\
+                          <input  id="me_slider_'+new_cmetric+'" class="slider var_impact_score_slider var_impact_score_slider_mutimpact var_impact_score_slider_mutimpact_custom"  value="0" min="-10" max="10" step="1" type="range" data-value_target="#me_slider_val_'+new_cmetric+'" data-param_ref="'+new_cmetric+'" data-is_mutfunc="false">\
+                        </div>\
+                        <div  id="me_slider_val_'+new_cmetric+'" class="slider_val me_slider_val">0</div>\
+                    </td>\
+                    <td class="col-md-5 table_param_name" >\
+                        '+new_cmetric+'\
+                    </td>\
+                    <td class="col-md-4">\
+                      <span id="'+new_cmetric+'" class="mut_effect_res mut_effect_res_data" data-relevant_vals="" data-res_value="" ></span><span id="'+new_cmetric+'_warn" class="mut_effect_res mut_effect_res_warn"></span>\
+                    </td>\
+                  </tr>'
+            middle_html+=add_html;
+        }
+        var num_added=added_metrics.length;
+        $("#num_params_cust_total").text(num_added)
+        var final_html=table_head+middle_html+table_bottom;
+        $("#custom_metrics_tbl").html(final_html);
+        impact_per_var_all=new_impact_per_var_all;
+
+        if ($(".seq_sel.selected").length >=1){
+            trigger_update_mutation_effect()
+        }
+        obtain_impact_score()
+    }
+    window.added_custom_descr=added_custom_descr;
 
     function fix_float_to_n_nonzero(myfloat,lt1,bg1,bt1max){
         //Fixes floats so that we can see at least 3 difits. The max is at 10^(-9) where we cut anyway.
@@ -3708,7 +3753,8 @@ function Array_Sort_Numbers(inputarray){
         var selected_params=[];
         var active_params_me=0;
         var active_params_td=0;
-        $(".var_impact_score_slider").each(function(){
+        var active_params_cust=0;
+        $("#analysis_variant_impact").find(".var_impact_score_slider").each(function(){
             var correction= $($(this).data("value_target")).html();
             //var correction= Number($(this).val());
             var is_mutfunc= $(this).data("is_mutfunc");
@@ -3761,7 +3807,12 @@ function Array_Sort_Numbers(inputarray){
                     }*/
 
                 } else {
-                    active_params_me+=1;
+                    if( $(this).hasClass("var_impact_score_slider_mutimpact_custom")){
+                        active_params_cust+=1;
+                    } else {
+                        active_params_me+=1;
+
+                    }
                     if (analysis_ref == "variant_dhydro" ){
                         is_hydrophobicity=true;
                         var analysis_type=$("#"+analysis_ref+"_options").val();
@@ -3781,6 +3832,7 @@ function Array_Sort_Numbers(inputarray){
         //set badges with number of actve sliders
         $("#num_params_td").html(active_params_td);
         $("#num_params_me").html(active_params_me);
+        $("#num_params_cust").html(active_params_cust);
         //prepare cart
         chart_selector=$("#var_impact_score_chart_perframe");
         chart_selector.html("");
@@ -3843,7 +3895,8 @@ function Array_Sort_Numbers(inputarray){
         }
     }
 
-    $(".var_impact_score_slider").on('input',function(){
+    $("#analysis_variant_impact").on('input','.var_impact_score_slider',function(){
+        console.log("1",$(this).data("param_ref"))
         var new_val=Number($(this).val());
         $($(this).data("value_target")).html(new_val); //Show value in html
         if (Math.abs(new_val)>0){
@@ -3853,12 +3906,15 @@ function Array_Sort_Numbers(inputarray){
         }
     });
 
-    $(".var_impact_score_slider").change(function(){ 
+    //$("#analysis_variant_impact").find(".var_impact_score_slider").change(function(){ 
+    $("#analysis_variant_impact").on('change','.var_impact_score_slider',function(){
+        console.log("----2",$(this).data("param_ref"))
         $(".imp_score_fitted_weights.active").removeClass("active");
         obtain_impact_score();
     })
 
-    $(".var_impact_score_clear").click(function(){
+    $("#analysis_variant_impact").on("click",".var_impact_score_clear", function(){
+
         var target_clear=$(this).data("target_ref");
         $(target_clear).each(function(){
             var this_slider=$(this);
@@ -3894,8 +3950,7 @@ function Array_Sort_Numbers(inputarray){
         update_average_sd_data(traj_id,protname,varpos,thisval);
     })
 */
-    $("#variant_dhydro_options").change(function(){ 
-        //Update average and SD values from table
+    function trigger_update_mutation_effect(){
         var activevar=$(".seq_sel.hasvariants.selected");
         if (activevar.length >0){
             var thisvarname= $(".selected_var_name").html();
@@ -3903,6 +3958,12 @@ function Array_Sort_Numbers(inputarray){
             var thisvarinfo=activevar.data("varinfo")[thisvarname];
             update_mutation_effect(impact_per_var_all,thisvarinfo,protname);            
         }
+    }
+
+    $("#variant_dhydro_options").change(function(){ 
+        //Update average and SD values from table
+        trigger_update_mutation_effect()
+        
         
         //If a predefined score is selected, update the slider val to that one
         var active_defaut_weights=$(".imp_score_fitted_weights.active");

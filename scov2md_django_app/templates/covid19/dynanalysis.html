@@ -908,9 +908,15 @@
                       <div id="displayinview_selvar" class="checkbox "  style="margin:10px 0;float:left;">
                         <label><input id="displayinview_var_impact" type="checkbox" class="displayinview" data-nglname="var_impact;var_impact_seq" checked >Display in Viewer</label>
                       </div>
-                      <div id="colormap_legend" class="pull-right" style="width:100px;margin:10px auto;display:none">
-                        <div style="width:50px;height: 20px;background: linear-gradient(to right, #ff0000 0%, #ffff00 100%);float: left"></div>
-                        <div style="width:50px;height: 20px;background: linear-gradient(to right, #ffff00 0%, #00ff00 100%);float: right;"></div>
+                      <div id="colormap_legend" class="pull-right" style="width:140px;margin:10px auto;display:none">
+                        <div style="margin:0 20px">
+                            <div style="width:50px;height: 20px;background: linear-gradient(to right, #ff0000 0%, #ffff00 100%);float: left;"></div>
+                            <div style="width:50px;height: 20px;background: linear-gradient(to right, #ffff00 0%, #00ff00 100%);float: right;"></div>
+                        </div>
+                        <div style="font-size:12px;text-align:center;line-height:1.2">
+                          <div style="float: left;">Low <br> score</div>
+                          <div style="float: right;">High<br> score</div>
+                        </div>
                       </div>
                     </div>
                     <div style="padding:10px 0">
@@ -942,7 +948,7 @@
                         {% endif %}
                          <div class="row">
                               <div class="section_pan sub_subsectiontitle collapsable_sec" data-toggle="collapse" data-target="#imp_score_me_cont" ><span>Mutation effect </span>
-                                <span id="num_params_me" class="badge">0</span>
+                                <span class="badge"><span  id="num_params_me">0</span>/{{count_mutant_effect_params}}</span>
                                 <span class="glyphicon glyphicon-chevron-down arrow"></span>
                               </div>
                          </div>
@@ -963,7 +969,7 @@
                                           {% if param.include_in_score %}
                                           
                                             <div class="slider_div">
-                                              <input  id="me_slider_{{param.ref}}" class="slider var_impact_score_slider var_impact_score_slider_mutimpact"  value="0" min="-10" max="10" step="1" type="range" data-value_target="#me_slider_val_{{param.ref}}" data-param_ref="{{param.ref}}" data-is_mutfunc={{param.is_mutfunc|json_dump}}>
+                                              <input  id="me_slider_{{param.ref}}" class="slider var_impact_score_slider var_impact_score_slider_mutimpact var_impact_score_slider_mutimpact_orig"  value="0" min="-10" max="10" step="1" type="range" data-value_target="#me_slider_val_{{param.ref}}" data-param_ref="{{param.ref}}" data-is_mutfunc={{param.is_mutfunc|json_dump}}>
                                             </div>
                                             <div  id="me_slider_val_{{param.ref}}" class="slider_val me_slider_val">0</div>
 
@@ -994,14 +1000,14 @@
                                 </tbody>
                               </table>
                               {% endfor %}
-                              <button class="btn btn-link var_impact_score_clear" style="color:#DC143C;"  data-target_ref=".var_impact_score_slider_mutimpact">Clear selection</button>
+                              <button class="btn btn-link var_impact_score_clear" style="color:#DC143C;"  data-target_ref=".var_impact_score_slider_mutimpact_orig">Clear selection</button>
                             </div>
                          </div><!-- END imp_score_me_cont -->
 
 
                        <div class="row">
                             <div class="section_pan sub_subsectiontitle collapsable_sec" data-toggle="collapse" data-target="#imp_score_td_cont" ><span>Time-dependent </span>
-                              <span id="num_params_td" class="badge">0</span>
+                              <span class="badge"><span id="num_params_td" >0</span>/{{count_time_dep_params}}</span>
                               <img class="loading_var" style="height:20px;display:none" src="{% static 'view/images/loading-gear.gif' %}" /><span class="glyphicon glyphicon-chevron-down arrow"></span></div>
                        </div>
                        <div id="imp_score_td_cont" class="collapse">
@@ -1088,8 +1094,22 @@
                           </table>
                           <button class="btn btn-link var_impact_score_clear" style="color:#DC143C;" data-target_ref=".var_impact_score_slider_time_dependent">Clear selection</button>
                         </div>
-                      </div><!-- END imp_score_tf_cont -->
+                      </div><!-- END imp_score_td_cont -->
 
+
+                       <div class="row">
+                            <div class="section_pan sub_subsectiontitle collapsable_sec" data-toggle="collapse" data-target="#imp_score_cust_cont" ><span>Custom descriptors </span>
+                              <span  class="badge"><span id="num_params_cust">0</span>/<span id="num_params_cust_total">0</span></span>
+                              <span class="glyphicon glyphicon-chevron-down arrow"></span>
+                            </div>
+                       </div>
+                       <div id="imp_score_cust_cont" class="collapse">
+                        <p class="subsection_infotext">Upload your own descriptors according to this <a href="/covid19/dwl/cdescr_template/{{dyn_id}}">template</a></button>.</p>
+
+                        <iframe style="border:none;width: 100%;height:80px ;" id="upload_cust_descr" src="/covid19/upload_descriptors/{{dyn_id}}" scrolling="no"></iframe>
+
+                        <span id="custom_metrics_tbl"></span>
+                       </div><!-- END imp_score_cust_cont -->
 
 
 
